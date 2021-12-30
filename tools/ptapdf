@@ -1,0 +1,2 @@
+#!/bin/csh
+a2pdfify --plain -f8 assignments-???-v{$1}-{course,ta}.txt

@@ -1,0 +1,10 @@
+#!/bin/csh
+#
+# Syntax:
+#     ptadiff <term> <version_a> <version_b>
+#
+# Example:
+#     ptadiff 21b 2 3
+foreach type ( ta course )
+  diff --unified=999 assignments-$1-v$2-${type}.txt assignments-$1-v$3-${type}.txt > diff-v$2-v$3-${type}.txt
+end
