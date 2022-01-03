@@ -151,7 +151,143 @@ def area_description(area,theory_expt):
         qualifier = ""
 
     return "{} {}".format(area_name,qualifier)
-    
+
+################################################################
+# name processing
+################################################################
+
+def regularize_name(name,salutation_set={"Prof."}):
+    """ Regularize professor name into last-name-first form.
+
+    Processes name in form:
+           'Special' (e.g., 'DGS')
+           'Last, First [Middle]'
+           'First [Middle] Last'
+           'Prof. First [Middle] Last'
+
+    Special (i.e., one-word) names are left untouched.
+
+    Arguments:
+        name (string) : the name
+        salutation_set (set of string, optional) : salutations to strip
+
+    Returns:
+        (string) : the regularized name
+    """
+
+    tokens = name.split()
+
+    if (len(tokens) == 1):
+        # case 'Special'   (e.g., 'DGS')
+        regularized_name = name
+    elif (tokens[0][-1] == ","):
+        # case 'Last, First [Middle]'
+        regularized_name = " ".join(tokens)
+    elif (tokens[0] in salutation_set):
+        # case 'Salutation First [Middle] Last'
+        regularized_name = "{}, {}".format(tokens[-1]," ".join(tokens[1:-1]))
+    else:
+        # case 'First [Middle] Last'
+        regularized_name = "{}, {}".format(tokens[-1]," ".join(tokens[0:-1]))
+
+    ## print(name,tokens,regularized_name)
+
+    return regularized_name
+
+################################################################
+# status helper functions
+################################################################
+
+def get_ta_status_flag(funding_status):
+    """Generate TA status flag for student entry.
+
+    This flag is from a "teaching preference request" perspective, not a funding
+    perspective.
+
+    Arguments:
+        funding_status (str): funding entry for current term
+
+    Returns:
+        (str) : flag ("" for non-TA, "*" for TA, or "?" for unrecognized)
+
+    """
+
+    if (len(funding_status.split())==0):
+        base_status = ""
+    else:
+        base_status = funding_status.split()[0]
+
+    if (base_status in [
+            # standard
+            "G","NS","RA","RA-ext","RA-intern","RA-univ","Fellow-ext","Fellow-univ","Fellow-dept",
+            # special case
+            "TA-NA",  # TA with no assignment (special GA support)
+            "Fellow-remote",  # GA funded 20b special arrangement
+            "GA",  # special GA support
+            # legacy
+            "Fellow"
+    ]):
+        # RA or unfunded or otherwise no teaching duty
+        flag=""
+    elif (base_status in ["TA","TA/RA"]):
+        # TA
+        flag="*"
+    else:
+        # fallthrough
+        flag="?"
+
+    return flag
+
+def advising_role_str(name,entry):
+    """ Generate formatted tag for different advising/committee roles.
+
+    Arguments:
+       name (str): Faculty name
+       entry (dict): Student entry
+
+    Returns:
+        (str): role string
+    """
+
+    if (name==entry["advisor"]):
+        value = "-- Advisor"
+    elif (name==entry["coadvisor"]):
+        value = "-- Coadvisor"
+    elif (name==entry["chair"]):
+        value = "*"
+    else:
+        value = ""
+        
+    return value
+
+
+def supplement_flag_str(name,entry):
+    """ Generate flag for newly-assigned committee member.
+
+    Arguments:
+       name (str): Faculty name
+       entry (dict): Student entry
+
+    Returns:
+        (str): flag string
+    """
+
+    value = "#" if (name in entry.get("supplement_committee",set())) else ""
+    return value
+
+def tenure_flag_str(name,faculty_list):
+    """ Generate flag for newly-assigned committee member.
+
+    Arguments:
+       name (str): Faculty name
+       faculty_list (list of str): T&TT faculty list entry
+
+    Returns:
+        (str): flag string
+    """
+
+    return "@" if (name in faculty_list) else ""
+
 ################################################################
 # data input
 ################################################################
@@ -168,8 +304,12 @@ def read_faculty(filename):
 
     faculty_stream = open(filename,"r")
     faculty_list = list(faculty_stream)
-    faculty_list = list(map(spreadsheet.regularize_name,faculty_list))
+    faculty_list = list(map(regularize_name,faculty_list))
     return faculty_list
+
+################################################################
+# database generation and postprocessing
+################################################################
 
 def generate_database(funding_keys):
     """ Read CSV database and postprocess fields.
@@ -208,7 +348,7 @@ def generate_database(funding_keys):
         else:
             print("ERROR: missing advisor for {last}, {first}".format(**entry))
             raise(ValueError("missing advisor"))
-        advisor_list = list(map(spreadsheet.regularize_name,advisor_list))  # regularize names
+        advisor_list = list(map(regularize_name,advisor_list))  # regularize names
         entry["advisor"] = advisor_list[0]
         if (len(advisor_list)==2):
             entry["coadvisor"] = advisor_list[1]
@@ -245,7 +385,7 @@ def generate_database(funding_keys):
             committee.add(entry["committee2"])
         if (entry["committee3"] != ""):
             committee.add(entry["committee3"])
-        committee = set(map(spreadsheet.regularize_name,committee))  # regularize names
+        committee = set(map(regularize_name,committee))  # regularize names
         entry["committee"] = committee  # store committee
 
         # basic status sanity checks
@@ -343,106 +483,12 @@ def augment_committees(database,supplement_filename):
             supplement_committee.add(supplement_entry["committee2"])
         if (supplement_entry["committee3"] != ""):
             supplement_committee.add(supplement_entry["committee3"])
-        supplement_committee = set(map(spreadsheet.regularize_name,supplement_committee))  # regularize names
+        supplement_committee = set(map(regularize_name,supplement_committee))  # regularize names
 
         # save results
         entry["supplement_committee"] = supplement_committee
         entry["committee"].update(supplement_committee)
 
-
-################################################################
-# status helper functions
-################################################################
-
-def get_ta_status_flag(funding_status):
-    """Generate TA status flag for student entry.
-
-    This flag is from a "teaching preference request" perspective, not a funding
-    perspective.
-
-    Arguments:
-        funding_status (str): funding entry for current term
-
-    Returns:
-        (str) : flag ("" for non-TA, "*" for TA, or "?" for unrecognized)
-
-    """
-
-    if (len(funding_status.split())==0):
-        base_status = ""
-    else:
-        base_status = funding_status.split()[0]
-
-    if (base_status in [
-            # standard
-            "G","NS","RA","RA-ext","RA-intern","RA-univ","Fellow-ext","Fellow-univ","Fellow-dept",
-            # special case
-            "TA-NA",  # TA with no assignment (special GA support)
-            "Fellow-remote",  # GA funded 20b special arrangement
-            "GA",  # special GA support
-            # legacy
-            "Fellow"
-    ]):
-        # RA or unfunded or otherwise no teaching duty
-        flag=""
-    elif (base_status in ["TA","TA/RA"]):
-        # TA
-        flag="*"
-    else:
-        # fallthrough
-        flag="?"
-
-    return flag
-
-def advising_role_str(name,entry):
-    """ Generate formatted tag for different advising/committee roles.
-
-    Arguments:
-       name (str): Faculty name
-       entry (dict): Student entry
-
-    Returns:
-        (str): role string
-    """
-
-    if (name==entry["advisor"]):
-        value = "-- Advisor"
-    elif (name==entry["coadvisor"]):
-        value = "-- Coadvisor"
-    elif (name==entry["chair"]):
-        value = "*"
-    else:
-        value = ""
-        
-    return value
-
-
-def supplement_flag_str(name,entry):
-    """ Generate flag for newly-assigned committee member.
-
-    Arguments:
-       name (str): Faculty name
-       entry (dict): Student entry
-
-    Returns:
-        (str): flag string
-    """
-
-    value = "#" if (name in entry.get("supplement_committee",set())) else ""
-    return value
-
-def tenure_flag_str(name,faculty_list):
-    """ Generate flag for newly-assigned committee member.
-
-    Arguments:
-       name (str): Faculty name
-       faculty_list (list of str): T&TT faculty list entry
-
-    Returns:
-        (str): flag string
-    """
-
-    return "@" if (name in faculty_list) else ""
 
 ################################################################
 # common legends

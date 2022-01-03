@@ -28,9 +28,11 @@ University of Notre Dame
 07/26/20 (mac): Update to 20b (20b-process-ta-assignments.py).
 01/20/21 (mac): Update to 21a (21a-process-ta-assignments.py).
 08/13/21 (mac): Update to 21b.  Make term agnostic (process-ta-assignments.py).
+01/02/22 (mac): Absorb timeslot handling from spreadsheet.py and make more robust.
 """
 
 import datetime
+import re
 import sys
 
 import spreadsheet
@@ -212,7 +214,7 @@ def read_slots(filename):
         # 
         # May be reformatted "when" if relevant to assignment, else exam dates if exist.
         if (record["section_and_when_relevant"]):
-            record["when_or_exams"] = spreadsheet.compress_registrar_timeslot(record["when"])
+            record["when_or_exams"] = compress_registrar_timeslot(record["when"])
         elif (record["exams"]!=""):
             record["when_or_exams"] = record["exams"]
         else:
@@ -224,6 +226,61 @@ def read_slots(filename):
             record["hours"] = int(record["hours"])
 
     return table
+
+################################################################
+# special handling of registrar input fields
+################################################################
+
+def compress_registrar_timeslot_single(timeslot):
+    """Compress unnecessary space from *single* registrar class
+    schedule timeslot code.
+
+    This is a helper function for internal use by compress_registrar_timeslot.
+
+    """
+
+    # parse raw timeslot
+    cleaned = timeslot.strip()
+    timeslot_regex = re.compile(r"(?P<days>[MTWRF\s]+) - (?P<time>[\S]+ - [\S]+)")
+    match = timeslot_regex.match(cleaned)
+
+    # trap special timeslot values
+    if cleaned in {"TBD"}:
+        return cleaned
+    
+    # trap nonstandard timeslot format
+    if match is None:
+        print("WARN: failed match to date and times in registrar timeslot {}".format(timeslot))
+        return cleaned
+    
+    # convert to short form
+    parts = match.groupdict()
+    short_days = parts["days"].replace(" ","")
+    short_time = parts["time"].replace(" ","")
+    short_form = "{short_days} {short_time}".format(short_days=short_days,short_time=short_time)
+    return short_form
+
+def compress_registrar_timeslot(timeslot):
+    """Compress unnecessary space from registrar class schedule timeslot
+    code.
+
+    Multiple times may be delimited by a slash.
+
+    Ex:
+
+    >>> compress_registrar_timeslot("M W F - 11:30A - 12:20P")
+
+    'MWF 11:30A-12:20P'
+
+    >>> compress_registrar_timeslot("W - 3:00P - 3:50P / F - 2:00P - 3:50P")
+
+    'W 3:00P-3:50P / F 2:00P-3:50P'
+    """
+
+    timeslot_list = timeslot.split("/")
+    short_form_list = list(map(compress_registrar_timeslot_single,timeslot_list))
+    short_form = " / ".join(short_form_list)
+    return short_form
 
 ################################################################
 # processing

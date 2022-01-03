@@ -24,8 +24,8 @@ import spreadsheet
 # global database configuration
 ################################################################
 
-database_filename = "/home/mcaprio/docs/nd/registrar/class-schedule/22a/nd-edu-reg_class-sched-22a-phys_211201.csv"
-out_filename = "classes-22a-211201.txt"
+database_filename = "/home/mcaprio/docs/nd/registrar/class-schedule/22a/nd-edu-reg_class-sched-22a-phys_211228.csv"
+out_filename = "classes-22a-211228.txt"
 
 # Fields in database:
 #

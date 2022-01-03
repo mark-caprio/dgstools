@@ -48,7 +48,7 @@ import spreadsheet
 
 
 # configuration
-filename = "Student TA preferences (2022A).csv"
+filename = "Student TA preferences (2022A)-EDT.csv"
 report_filename = "ta-student-preferences-22a.txt"
 
 
