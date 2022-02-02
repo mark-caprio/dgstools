@@ -6,17 +6,26 @@ These reports are for general reference, as input to the TA assignment process,
 and as working reports to help in preparing research/mentoring committee
 assignments.
 
+Requires: PyYAML
+
+The config file "process-students.yml" is a YAML file with the following keys:
+
+    date (str): report date (usually database date) as "mm/dd/yyyy"
+    database_filename (str): path to student database snapshot
+    faculty_filename (str): path list of current T&TT faculty
+    research_committee (bool): make special reports supporting research committee assignments
+    research_committee_filename (str): path to spreadsheet giving new committee members
+    ta (bool): make special reports supporting TA assignments
+    ta_term (str): funding term which should determine ta status ("a"=spring, "b"=fall)
+
 Postprocessing:
 
-
-    set today = 211209
     python3 ~/code/dgstools/dgstools/process-students.py
-    mvsubst s/.txt/-${today}.txt/ *[a-z].txt
-    mvsubst s/.csv/-${today}.csv/ ta-roster-TEMPLATE.csv
 
-    a2pdfify --plain --columns=2 -f9 advising-{by-faculty,by-student,load}-*.txt
+    a2pdfify --plain -f9 student-status-*.txt
+    a2pdfify --plain --columns=2 -f9 advising-by-*.txt
+    a2pdfify --plain -f10 advising-load-*.txt
     a2pdfify --plain --columns=2 -f10 research-committees-by-faculty-*.txt
-    a2pdfify --plain -f9 student-status-{contact,group-advisor-funding,group-advisor-contact,group-advisor,meeting}-*.txt
     a2pdfify --plain --columns=2 -f12 ta-list-*.txt
     a2pdfify --plain --columns=1 -f12 ta-roster-notes-*.txt
   
@@ -37,10 +46,14 @@ University of Notre Dame
 01/14/20 (mac): Add "tenured & tenure track" flag on faculty names in advising listings by faculty.
 01/18/20 (mac): Add support for research committee assignment proccess.
 12/07/21 (mac): Make term agnostic (process-students.py).
+02/02/22 (mac): Switch from hard-coded parameters to YAML config file.
 
 """
 
 import datetime
+import os
+
+import yaml
 
 import spreadsheet
 
@@ -48,11 +61,7 @@ import spreadsheet
 # global database configuration
 ################################################################
 
-database_filename = "/home/mcaprio/sync/google/DGS/DGS-Shari/StudentDatabase/20211209_CurrentStudents.csv"
-faculty_filename = "/home/mcaprio/sync/google/DGS/DGS-Shari/StudentDatabase/current-faculty-tenure-track.csv"
-current_funding_key = "funding_spring"
-
-# Fields in 2021207_CurrentStudents.csv:
+# Fields in 20211207_CurrentStudents.csv:
 
 #    Last Name
 #    First Name
@@ -116,18 +125,11 @@ field_names = [
 ]
 
 ################################################################
-# global timestamp
-################################################################
-
-today = datetime.date.today()
-date_string_today = today.strftime("%m/%d/%Y")
-
-################################################################
 # area formatting utility
 ################################################################
 
 def area_description(area,theory_expt):
-    """ Generate plain language name of research area.
+    """ Generate plain-language name of research area from database codes.
     """
     
     area_name_by_area = {
@@ -436,9 +438,9 @@ def augment_committees(database,supplement_filename):
     """
 
     # provide mapping into current database
-    database_by_student = {}
+    database_entry_by_student = {}
     for entry in database:
-        database_by_student[entry["key"]] = entry
+        database_entry_by_student[entry["key"]] = entry
 
     # read committee additions file
     supplement_field_names = [
@@ -460,9 +462,9 @@ def augment_committees(database,supplement_filename):
         if (supplement_entry["last"] == ""):
             continue
         key = "{last}:{first}".format(**supplement_entry)
-        if (key not in database_by_student):
+        if (key not in database_entry_by_student):
             raise ValueError("Unrecognized student key {} from committee additions database".format(key))
-        entry = database_by_student[key]
+        entry = database_entry_by_student[key]
         
         # process committee supplements
         ## print(supplement_entry)
@@ -548,7 +550,7 @@ def report_student_status(filename,database,sorting="year",options={},start_year
         "\n"
         "{}"
         "\n"
-        "".format(date_string_today,student_status_legend),
+        "".format(DATE_STRING,student_status_legend),
         file=report_stream
     )
 
@@ -667,7 +669,7 @@ def report_student_status_for_ta_assignment(filename,database,funding_field,mode
             "\n"
             "  * = TA support\n"
             "  ? = possible TA support (TBD)\n"
-            "".format(date_string_today),
+            "".format(DATE_STRING),
             file=report_stream
         )
     elif (mode=="notes"):
@@ -778,7 +780,7 @@ def report_student_status_for_ta_list(filename,database,funding_field):
         "\n"
         "  * = TA support\n"
         "  ? = possible TA support (TBD)\n"
-        "".format(date_string_today),
+        "".format(DATE_STRING),
         file=report_stream
     )
 
@@ -901,7 +903,7 @@ def report_advising_load(filename,database,base_set):
         "\n"
         "  advisor + coadvisor / committee\n"
         "  {}"
-        "".format(date_string_today,faculty_legend_tenure),
+        "".format(DATE_STRING,faculty_legend_tenure),
         file=report_stream
     )
 
@@ -917,7 +919,7 @@ def report_advising_load(filename,database,base_set):
         else:
             coadvisor_tally_string = ""
         print(
-            "{:31} {:2d} {:2s} / {:<2d} {:1s}"
+            "{:34} {:2d} {:2s} / {:<2d} {:1s}"
             "".format(
                 name,advisor_tally.get(name,0),coadvisor_tally_string,committee_tally.get(name,0),
                 tenure_flag_str(name,faculty_list)
@@ -970,7 +972,7 @@ def report_advising_faculty(filename,database,base_set,include_defended=True,inc
         "{}"
         "\n"
         "".format(
-            title,date_string_today,student_status_legend,
+            title,DATE_STRING,student_status_legend,
             faculty_legend_tenure if flag_tenured else faculty_legend_base
         ),
         file=report_stream
@@ -1061,7 +1063,7 @@ def report_advising_student(filename,database):
         "  {}\n"
         "\n"
         "{}"
-        "".format(date_string_today,faculty_legend_base),
+        "".format(DATE_STRING,faculty_legend_base),
         file=report_stream
     )
 
@@ -1112,47 +1114,64 @@ def report_advising_student(filename,database):
 # main program
 ################################################################
 
-# read common data
-database = generate_database(funding_keys=("funding_fall","funding_spring"))
-faculty_list = read_faculty(faculty_filename)
-
 if (__name__=="__main__"):
 
+    # read configuration
+    with open("process-students.yml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # set date
+    date_string = config.get("date")
+    month, day, year = tuple(map(int,date_string.split("/")))
+    today = datetime.date(year, month, day)
+    DATE_STRING = datetime.date.today().strftime("%m/%d/%Y")  # ugly global...
+    date_code = datetime.date.today().strftime("%y%m%d")
+        
+    # read database
+    database_filename = config.get("database_filename")
+    faculty_filename = config.get("faculty_filename")
+    research_committee_filename = config.get("research_committee_filename")
+    database = generate_database(funding_keys=("funding_fall","funding_spring"))
+    faculty_list = read_faculty(faculty_filename)
+    if os.path.exists(research_committee_filename):
+        # for preliminary committee assignments
+        augment_committees(database,"committee-supplement.csv")
+
     # student status reports
-    report_student_status("student-status-contact.txt",database,options={"area","e-mail"})
-    ## report_student_status("student-status-funding.txt",database,options={"area","funding"})
+    report_student_status("student-status-contact-{}.txt".format(date_code),database,options={"area","e-mail"})
     report_student_status(
-        "student-status-group-advisor-funding.txt",  # for funding survey and admissions planning
+        "student-status-group-advisor-funding-{}.txt".format(date_code),  # for funding survey and admissions planning
         database,
         options={"area","funding"},sorting="group-advisor",start_year=0.5
     )
     report_student_status(
-        "student-status-group-advisor-contact.txt",  # for distribution as ROS contact list
+        "student-status-group-advisor-contact-{}.txt".format(date_code),  # for distribution as ROS contact list
         database,
         options={"area","e-mail"},sorting="group-advisor",start_year=0.5
     )
-    report_student_status(
-        "student-status-group-advisor.txt",  # as candidacy status overview
-        database,
-        options={"area"},sorting="group-advisor",start_year=0.5
-    )
-    report_student_status("student-status-meeting.txt",database,options={"area","meeting"})
+    ## report_student_status(
+    ##     "student-status-group-advisor.txt",  # as candidacy status overview
+    ##     database,
+    ##     options={"area"},sorting="group-advisor",start_year=0.5
+    ## )
+    report_student_status("student-status-meeting-{}.txt".format(date_code),database,options={"area","meeting"})
 
     # advising reports
-    report_advising_load("advising-load.txt",database,faculty_list)
-    report_advising_faculty("advising-by-faculty.txt",database,faculty_list,include_defended=True,include_advising=True,flag_tenured=False)
-    report_advising_student("advising-by-student.txt",database)
+    report_advising_faculty("advising-by-faculty-{}.txt".format(date_code),database,faculty_list,include_defended=True,include_advising=True,flag_tenured=False)
+    report_advising_student("advising-by-student-{}.txt".format(date_code),database)
 
     # working reports for mentoring committee assignment process (optional)
-    make_committee_preparation_reports = False
+    make_committee_preparation_reports = config.get("research_committee") is not False
     if (make_committee_preparation_reports):
-        # for preliminary committee assignments
-        augment_committees(database,"committee-supplement.csv")
-        report_advising_faculty("research-committees-by-faculty.txt",database,faculty_list,include_defended=False,include_advising=False,flag_tenured=True)
+        report_advising_load("advising-load-{}.txt".format(date_code),database,faculty_list)
+        report_advising_faculty("research-committees-by-faculty-{}.txt".format(date_code),database,faculty_list,include_defended=False,include_advising=False,flag_tenured=True)
  
     # working reports for TA assignment process (optional)
-    make_ta_assignment_reports = False
+    make_ta_assignment_reports = config.get("ta") is not False
     if (make_ta_assignment_reports):
-        report_student_status_for_ta_assignment("ta-list.txt",database,current_funding_key,mode="list")
-        report_student_status_for_ta_assignment("ta-roster-notes.txt",database,current_funding_key,mode="notes")
-        report_student_status_for_ta_assignment("ta-roster-TEMPLATE.csv",database,current_funding_key,mode="spreadsheet")
+        funding_key_by_term = {"a": "funding_spring", "b": "funding_fall"}
+        ta_term = config.get("ta_term")
+        current_funding_key = funding_key_by_term[ta_term]
+        report_student_status_for_ta_assignment("ta-list-{}.txt".format(date_code),database,current_funding_key,mode="list")
+        report_student_status_for_ta_assignment("ta-roster-notes-{}.txt".format(date_code),database,current_funding_key,mode="notes")
+        report_student_status_for_ta_assignment("ta-roster-TEMPLATE-{}.csv".format(date_code),database,current_funding_key,mode="spreadsheet")

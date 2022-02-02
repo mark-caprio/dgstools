@@ -1,0 +1,16 @@
+# configuration for process_students.py
+
+# date
+date: 02/02/2022    # date string "mm/dd/yyyy"
+
+# student database parameters
+database_filename: /home/mcaprio/sync/google/DGS/DGS-Shari/StudentDatabase/20220131_CurrentStudents-EDT.csv
+faculty_filename: /home/mcaprio/sync/google/DGS/DGS-Shari/StudentDatabase/current-faculty-tenure-track.csv
+
+# research committee parameters
+research_committee: True    # make special reports supporting research committee assignments
+research_committee_filename: committee-supplement.csv    # filename for spreadsheet giving new committee members
+
+# TA assignment parameters
+ta: False     # make special reports supporting TA assignments
+ta_term: a    # funding term which should determine ta status (a=spring, b=fall)
