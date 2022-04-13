@@ -4,9 +4,21 @@ Generate class listing from registrar's class list spreadsheet.
 
 Download spreadsheet from Class Search as XLS, then open and resave as CSV.
 
-Example:
+Requires: PyYAML
 
-   python3 extract-class-list.py
+The config file "process-students.yml" is a YAML file with the following keys:
+
+    date (str): report date (usually database date) as "mm/dd/yyyy"
+    term (str): term as <yyx> ("a"=spring, "b"=fall)
+    database_filename (str): path to registrar class spreadsheet (CSV)
+
+Limitations:
+
+    - Multiple instructors for a course are dropped.
+
+Invocation:
+
+   python3 ~/code/dgstools/dgstools/extract-class-list.py
 
 Language: Python 3
 
@@ -15,17 +27,18 @@ University of Notre Dame
 
 11/12/16 (mac): Created.
 12/06/21 (mac): Update to 22a.  Make term agnostic (extract-class-list.py).
+04/12/22 (mac): Switch from hard-coded parameters to YAML config file.
 
 """
+
+import datetime
+import yaml
 
 import spreadsheet
 
 ################################################################
 # global database configuration
 ################################################################
-
-database_filename = "/home/mcaprio/docs/nd/registrar/class-schedule/22a/nd-edu-reg_class-sched-22a-phys_211228.csv"
-out_filename = "classes-22a-211228.txt"
 
 # Fields in database:
 #
@@ -42,8 +55,12 @@ field_names = [
 # data input
 ################################################################
 
-def generate_database():
+def generate_database(database_filename):
     """ Read CSV database and postprocess fields.
+
+    Arguments:
+
+        database_filename (str): past to registrar class schedule spreadsheet (CSV)
 
     Generated fields:
 
@@ -77,7 +94,7 @@ def generate_database():
 # reports
 ################################################################
 
-def generate_graduate_titles(filename,database):
+def generate_course_report(filename,database):
     """ Generate report of course/title/when.
 
     Arguments:
@@ -102,5 +119,23 @@ def generate_graduate_titles(filename,database):
 # main program
 ################################################################
 
-database = generate_database()
-generate_graduate_titles(out_filename,database)
+if (__name__=="__main__"):
+
+    # read configuration
+    with open("extract-class-list.yml", "r") as f:
+        config = yaml.safe_load(f)
+
+    # set date
+    date_string = config.get("date")
+    month, day, year = tuple(map(int,date_string.split("/")))
+    today = datetime.date(year, month, day)
+    date_code = today.strftime("%y%m%d")
+
+    # read class schedule
+    database_filename = config["database_filename"]
+    database = generate_database(database_filename)
+
+    # generate report
+    term = config["term"]
+    out_filename = "classes-{}-{}.txt".format(term, date_code)
+    generate_course_report(out_filename,database)

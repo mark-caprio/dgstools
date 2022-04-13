@@ -1,0 +1,10 @@
+# configuration for extract-class-list.py
+
+# date
+date: 04/12/2022    # date string "mm/dd/yyyy"
+
+# term
+ta: 22b    # term string "yyx" (a=spring, b=fall)
+
+# database
+database_filename: /home/mcaprio/docs/nd/registrar/class-schedule/22b/nd-edu-reg_class-sched-22b-phys_220412.csv
