@@ -36,9 +36,37 @@ import spreadsheet
 ################################################################
 
 # configuration
-term = "Spring 2022"
-term_tag = "22a"
-filename = "210825-ugarg-responses/Spring 2022Course Requests.csv"
+term = "Fall 2022"
+term_tag = "22b"
+filename = "220123-responses/Fall 2022 Course Requests.csv"
+
+# Fields 22b:
+# "Timestamp"
+# "Your First Name"
+# "Your Last Name"
+# "If you have taught your current course fewer than 3 times in the over the past 5 times that it has been offered, please choose from one of the options below:"
+# "If you have reached an understanding with the Chair on your teaching assignment for this semester, please remind us of the agreement in the space below."
+# "If you would like to teach a new course, or a course not listed below, or have any other requests, please list them below."
+# "If there is any other comments and/or information that you wish to communicate to the Committee, please use the space below."
+# "Phys 10033/20333: Earth Focus"
+# "Phys 10063/20063: Radioactivity and Society"
+# "Phys 10111: Principles of Physics"
+# "Phys 10140/20140: Descriptive Astronomy"
+# "Phys 10240: Elementary Cosmology"
+# "Phys 10310: Engineering Physics I"
+# "Phys 10320: Engineering Physics II"
+# "Phys 10411: Physics A"
+# "Phys 20065: Science and Strategy of Nuclear War"
+# "Phys 20210: Physics for Life Sciences I"
+# "Phys 20220: Physics for Life Sciences II"
+# "Phys 30461: Thermal Physics"
+# "Phys 30471: E & M I"
+# "Phys 40453: Quantum Mechanics I"
+# "Phys 50201: Physics for Astrophysics"
+# "Phys 60050: Computational Physics"
+# "Phys 60061: Scientific Writing for Physicists"
+# "Phys 70007: Quantum Mechanics I"
+# "Phys 80003: Quantum Field Theory I"
 
 # Fields 22a:
 # "Timestamp"
@@ -97,27 +125,31 @@ field_names = [
     "last",
     "continue",
     "agreement",
-    "requests"
+    "requests",
+    "other",
 ]
 tagged_line_field_names = [
-    "Phys 10342: Modern Physics: From Quarks to Quasars",
-    "PHYS 10310: Engineering Physics I",
-    "PHYS 10320: Engineering Physics II",
-    "PHYS 20210: Physics for Life Sciences I",
-    "PHYS 20220: Physics for Life Sciences II",
-    "PHYS 20420: Computational Methods",
-    "PHYS 20454: Intermediate Mechanics",
-    "PHYS 30472: Electromagnetic Waves",
-    "PHYS 50472: Relativity: Special and General ",
-    "PHYS 50602: Particles and Cosmology",
-    "PHYS 50701: Introduction to Nuclear Physics",
-    "PHYS 70006: Electrodynamics",
-    "PHYS 80004: Quantum Field Theory II",
+    "Phys 10033/20333: Earth Focus",
+    "Phys 10063/20063: Radioactivity and Society",
+    "Phys 10111: Principles of Physics",
+    "Phys 10140/20140: Descriptive Astronomy",
+    "Phys 10240: Elementary Cosmology",
+    "Phys 10310: Engineering Physics I",
+    "Phys 10320: Engineering Physics II",
+    "Phys 10411: Physics A",
+    "Phys 20065: Science and Strategy of Nuclear War",
+    "Phys 20210: Physics for Life Sciences I",
+    "Phys 20220: Physics for Life Sciences II",
+    "Phys 30461: Thermal Physics",
+    "Phys 30471: E & M I",
+    "Phys 40453: Quantum Mechanics I",
+    "Phys 50201: Physics for Astrophysics",
+    "Phys 60050: Computational Physics",
+    "Phys 60061: Scientific Writing for Physicists",
+    "Phys 70007: Quantum Mechanics I",
+    "Phys 80003: Quantum Field Theory I",
 ]
 field_names += tagged_line_field_names
-field_names += [
-    "other"
-]
 
 ################################################################
 # data input
@@ -186,12 +218,11 @@ def report_by_faculty(filename,database):
         # generate text block for entry
         entry_block = (""
                         "Name: {last}, {first}\n"
-                        "Didn't ask to change? {continue}\n"
-                        "Agreement? {agreement}\n"
+                        "Continue current? {continue}\n"
+                        "Understanding? {agreement}\n"
                         "Requests? {requests}\n"
-                        "Preferences:\n"
+                        "Comments? {other}\n"
                         "{preference_block}"  # string contains all needed newlines
-                        "Other: {other}\n"
                         "".format(preference_block=preference_block,**entry)
         )
         tagged_blocks[entry["name"].upper()] = entry_block
