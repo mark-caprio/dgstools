@@ -61,36 +61,37 @@ import spreadsheet
 # global database configuration
 ################################################################
 
-# Fields in 20211207_CurrentStudents.csv:
-
-#    Last Name
-#    First Name
-#    Nickname
-#    Gender
-#    Advisor
-#    Committee Member1
-#    Committee Member2
-#    Committee Member3
-#    Committee Research Chair
-#    Research Group
-#    TheoryExp
-#    Year
-#    Program
-#    GREPhys
-#    Invitation to CandidacyYES NO
-#    Invitation to Candidacy Date
-#    Date Written Candidacy Passed
-#    Oral Cand Date
-#    Defense Date
-#    Fall2122
-#    Spring2122
-#    ND ID
-#    Net ID
-#    Research Committee Meeting Date Scheduled2018
-#    Research Committee Meeting Date Scheduled2019
-#    Research Committee Meeting Date Scheduled2020
-#    Research Committee Meeting Date Scheduled2021
-#    Experimental Profiency Requirement
+# Fields in 20220412_CurrentStudents.csv
+# 
+#     Last Name
+#     First Name
+#     Nickname
+#     Gender
+#     Advisor
+#     Committee Member1
+#     Committee Member2
+#     Committee Member3
+#     Committee Research Chair
+#     Research Group
+#     TheoryExp
+#     Year
+#     Program
+#     GREPhys
+#     Invitation to CandidacyYES NO
+#     Invitation to Candidacy Date
+#     Date Written Candidacy Passed
+#     Oral Cand Date
+#     Defense Date
+#     Fall2122
+#     Spring2122
+#     ND ID
+#     Net ID
+#     Research Committee Meeting Date Scheduled2018
+#     Research Committee Meeting Date Scheduled2019
+#     Research Committee Meeting Date Scheduled2020
+#     Research Committee Meeting Date Scheduled2021
+#     Research Committee Meeting Date Scheduled2022
+#     Experimental Profiency Requirement
 
 field_names = [
     "last",
@@ -313,12 +314,15 @@ def read_faculty(filename):
 # database generation and postprocessing
 ################################################################
 
-def generate_database(funding_keys):
+def generate_database(funding_keys, verbose=False):
     """ Read CSV database and postprocess fields.
 
     Arguments:
+
         funding_keys (tuple of str): (fall_funding_key,spring_funding_key)
+
     Returns:
+
         (list of dict) : list of student records
     """
 
@@ -331,6 +335,9 @@ def generate_database(funding_keys):
     # postprocess
     for entry in database:
 
+        if verbose:
+            print(entry)
+            
         # define Last:First key
         entry["key"] = "{last}:{first}".format(**entry)
 
@@ -1102,7 +1109,6 @@ def report_advising_student(filename,database):
 
         tagged_lines[key] = "\n".join(entry_lines)
 
-
     # generate sorted output of lines
     for key in sorted(tagged_lines.keys()):
         print(tagged_lines[key],file=report_stream)
@@ -1124,14 +1130,14 @@ if (__name__=="__main__"):
     date_string = config.get("date")
     month, day, year = tuple(map(int,date_string.split("/")))
     today = datetime.date(year, month, day)
-    DATE_STRING = datetime.date.today().strftime("%m/%d/%Y")  # ugly global...
-    date_code = datetime.date.today().strftime("%y%m%d")
+    DATE_STRING = today.strftime("%m/%d/%Y")  # ugly global...
+    date_code = today.strftime("%y%m%d")
         
     # read database
     database_filename = config.get("database_filename")
     faculty_filename = config.get("faculty_filename")
     research_committee_filename = config.get("research_committee_filename")
-    database = generate_database(funding_keys=("funding_fall","funding_spring"))
+    database = generate_database(funding_keys=("funding_fall","funding_spring"), verbose=False)
     faculty_list = read_faculty(faculty_filename)
     if os.path.exists(research_committee_filename):
         # for preliminary committee assignments
