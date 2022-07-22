@@ -66,8 +66,8 @@ report_field_widths = {
 
 # header
 report_version_info = {
-    "term_name" : "Fall 2021",
-    "term_code" : "21b",
+    "term_name" : "Spring 2022",
+    "term_code" : "22a",
     "version" : None,
     "date" : None
 }
