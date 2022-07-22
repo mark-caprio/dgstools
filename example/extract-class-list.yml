@@ -1,10 +1,20 @@
 # configuration for extract-class-list.py
 
 # date
-date: 04/12/2022    # date string "mm/dd/yyyy"
+date: 07/20/2022    # date string "mm/dd/yyyy"
 
 # term
 term: 22b    # term string "yyx" (a=spring, b=fall)
 
 # database
-database_filename: /home/mcaprio/docs/nd/registrar/class-schedule/22b/nd-edu-reg_class-sched-22b-phys_220412.csv
+database_filename: courseleaf/AY2022-2023_220720.csv
+course_blacklist:
+    - PHYS 46490  # Directed Readings in Physics
+    - PHYS 48480  # Undergraduate Research
+    - PHYS 48490  # Undergraduate Research
+    - PHYS 48500  # Physics Honors Thesis
+    - PHYS 68000  # QuarkNet Directed Research
+    - PHYS 68699  # DirRsrch-Prtcl Physcs-QuarkNet
+    - PHYS 98200  # Dissertation Completion
+    - PHYS 98699  # Research and Dissertation
+    - PHYS 98700  # Nonresident Dissertation Rsrch

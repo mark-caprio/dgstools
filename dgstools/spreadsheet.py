@@ -46,6 +46,25 @@ import itertools
 import numpy as np
 
 ################################################################
+# diagnostics
+################################################################
+
+def screen_for_special_chars(filename):
+    """Read file and flag special characters.
+  
+    Arguments:
+        filename (string) : filename for spreadsheet to open
+    """
+
+    with open(filename,mode="r") as infile:
+        contents = infile.read(None)
+    
+    for b in contents:
+        if (ord(b)>127):
+            print(ord(b))
+
+
+################################################################
 # import functions
 ################################################################
 
@@ -82,6 +101,32 @@ def clean_up(entry,replace_newlines=True):
             cleaned = cleaned.replace("\n"," | ")
     return cleaned
 
+def read_spreadsheet_clean_stream(filename,skip=False,debug=False):
+    """Read CSV spreadsheet into list of dictionaries.
+
+    Arguments:
+        filename (string) : filename for spreadsheet to open
+        skip (boolean, optional) : whether or not to skip first line
+
+    Return:
+        (stream) : cleaned up stream
+
+    """
+
+    # import raw text
+    with open(filename,newline="",encoding="utf-8",errors="ignore") as infile:
+        if (skip):
+            infile.readline()  # skip header line
+        contents = infile.read(None)
+
+    # clean up contents
+    clean_contents = contents
+    clean_contents = unidecode.unidecode(clean_contents)  # convert all unicode to sensible ASCII substitute
+    clean_contents = clean_contents.replace(chr(0),"")  # remove NULL (chokes CSV reader)
+    clean_stream = io.StringIO(clean_contents)
+
+    return clean_stream
+
 def read_spreadsheet_table(filename,skip=False,debug=False):
     """Read CSV spreadsheet into table of strings.
 
@@ -99,35 +144,19 @@ def read_spreadsheet_table(filename,skip=False,debug=False):
         (list of lists) : table of entries
     """
 
+    clean_stream = read_spreadsheet_clean_stream(filename,skip=skip,debug=debug)
+
     table = []
-    with open(filename,newline="") as infile:
-        if (skip):
-            infile.readline()  # skip header line
-        reader = csv.reader(infile)
-        for row in reader:
-            if (verbose):
-                print("Row: {}".format(row))
-            if (None in row):
-                raise(ValueError("Row overruns designated fields"))
-            clean_row = list(map(clean_up,row))
-            table.append(clean_row)
+    reader = csv.reader(clean_stream)
+    for row in reader:
+        if (debug):
+            print("Row: {}".format(row))
+        if (None in row):
+            raise(ValueError("Row overruns designated fields"))
+        clean_row = list(map(clean_up,row))
+        table.append(clean_row)
             
     return table
-
-def screen_for_special_chars(filename):
-    """Read file and flag special characters.
-  
-    Arguments:
-        filename (string) : filename for spreadsheet to open
-    """
-
-    with open(filename,mode="r") as infile:
-        contents = infile.read(None)
-    
-    for b in contents:
-        if (ord(b)>127):
-            print(ord(b))
-
 
 def read_spreadsheet_dictionary(filename,fieldnames,skip=True,replace_newlines=True,restval=None,debug=False):
     """Read CSV spreadsheet into list of dictionaries.
@@ -157,19 +186,13 @@ def read_spreadsheet_dictionary(filename,fieldnames,skip=True,replace_newlines=T
 
     """
 
-    # import raw text
-    with open(filename,newline="",encoding="utf-8",errors="ignore") as infile:
-        if (skip):
-            infile.readline()  # skip header line
-        contents = infile.read(None)
+    # clean up input stream
+    clean_stream = read_spreadsheet_clean_stream(filename,skip=skip,debug=debug)
 
-    # clean up contents
-    clean_contents = contents
-    clean_contents = unidecode.unidecode(clean_contents)  # convert all unicode to sensible ASCII substitute
-    clean_contents = clean_contents.replace(chr(0),"")  # remove NULL (chokes CSV reader)
-    clean_stream = io.StringIO(clean_contents)
-
+    # parse spreadsheet
     reader = csv.DictReader(clean_stream,fieldnames=fieldnames,restval=restval)
+
+    # clean up entries
     data = []
     for entry in reader:
         if (debug):
