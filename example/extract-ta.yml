@@ -1,0 +1,10 @@
+# configuration for extract-class-list.py
+
+# term
+term: 22b    # term string "yyx" (a=spring, b=fall)
+
+# database
+response_filename_faculty_preferences: "Faculty TA preferences (2022B).csv"
+response_filename_faculty_feedback: "Faculty TA feedback (2022B).csv"
+response_filename_student_preferences: "Student TA preferences (2022B).csv"
+response_filename_student_feedback: "Student TA feedback (2022B).csv"

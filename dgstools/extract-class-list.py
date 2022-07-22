@@ -137,5 +137,5 @@ if (__name__=="__main__"):
 
     # generate report
     term = config["term"]
-    out_filename = "classes-{}-{}.txt".format(term, date_code)
-    generate_course_report(out_filename,database)
+    report_filename = "classes-{}-{}.txt".format(term, date_code)
+    generate_course_report(report_filename,database)

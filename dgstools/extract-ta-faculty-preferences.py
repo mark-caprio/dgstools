@@ -1,13 +1,22 @@
 """
 extract-ta-faculty-preferences.py
 
-Extract questionnairre responses.
+Extract questionnaire responses.
+
+Requires: PyYAML
 
 Usage:
 
-  cd ta/22a/forms
-  python3 extract-ta-faculty-preferences.py
-  a2pdfify -f9 --truncate-lines=no ta-faculty-preferences-22a.txt
+    python3 ~/code/dgstools/dgstools/extract-ta-faculty-preferences.py
+    a2pdfify -f9 --truncate-lines=no ta-faculty-preferences-22a.txt
+
+The config file "extract-ta.yml" is a YAML file with the following keys:
+
+    term (str): term as <yyx> ("a"=spring, "b"=fall)
+    response_filename_faculty_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_faculty_feedback (str): path to form response spreadsheet (CSV)
+    response_filename_student_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_student_feedback (str): path to form response spreadsheet (CSV)
 
 Language: Python 3
 
@@ -26,7 +35,11 @@ University of Notre Dame
 01/12/21 (mac): Update for 21a.
 07/23/21 (mac): Update for 21b.
 12/30/21 (mac): Update for 22a.  Make term agnostic (extract-ta-faculty-preferences).
+07/22/22 (mac): Switch from hard-coded parameters to YAML config file.
+
 """
+
+import yaml
 
 import spreadsheet
 
@@ -57,55 +70,61 @@ import spreadsheet
 #   "Uncommon TA assignments: Details"
 #   "Other specific requests"
 
-# configuration
-filename = "Faculty TA preferences (2022A).csv"
-report_filename = "ta-faculty-preferences-22a.txt"
+if (__name__=="__main__"):
 
-field_names = [
-    "timestamp","username",
-    "last","first",
-    "number","name",
-    "enrollment",
-    "special",
-    "GH","GW","GE","H","O","common",  # note HO were combined in TA survey
-    "GH-NS","GE-NS","A","X","uncommon",  # caveat: "GH-NS" didn't actually say "grading"
-    "other"
-]
-boolean_field_names = ["GH","GW","GE","H","O","GH-NS","GE-NS","A","X"]
+    # read configuration
+    with open("extract-ta.yml", "r") as f:
+        config = yaml.safe_load(f)
 
-# read file
-table = spreadsheet.read_spreadsheet_dictionary(filename,field_names,skip=True)
+    response_filename = config["response_filename_faculty_preferences"]
+    term = config["term"]
+    report_filename = "ta-faculty-preferences-{}.txt".format(term)
+    print("{} -> {}".format(response_filename,report_filename))
 
-# filter out test submissions
-table = list(filter((lambda row : (row["last"]!="TEST") and (row["name"]!="TEST")),table))
+    # read responses
+    field_names = [
+        "timestamp","username",
+        "last","first",
+        "number","name",
+        "enrollment",
+        "special",
+        "GH","GW","GE","H","O","common",  # note HO were combined in TA survey
+        "GH-NS","GE-NS","A","X","uncommon",  # caveat: "GH-NS" didn't actually say "grading"
+        "other"
+    ]
+    boolean_field_names = ["GH","GW","GE","H","O","GH-NS","GE-NS","A","X"]
+    table = spreadsheet.read_spreadsheet_dictionary(response_filename,field_names,skip=True)
 
-# sort by (lastname, firstname)
-table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper())))
+    # filter out test submissions
+    table = list(filter((lambda row : (row["last"]!="TEST") and (row["name"]!="TEST")),table))
 
-# process radio buttons
-for row in table:
-    spreadsheet.convert_fields_to_flags(row,boolean_field_names)
+    # sort by (lastname, firstname)
+    table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper())))
 
-# generate output tabulation
-report_stream = open(report_filename,"w")
+    # process radio buttons
+    for row in table:
+        spreadsheet.convert_fields_to_flags(row,boolean_field_names)
 
-# add name summary
-submitters = [
-    row["last"].title()
-    for row in table
-]
-unique_submitters = sorted(list(set(submitters)))
-print("Submitted: {}\n".format(", ".join(unique_submitters)),file=report_stream)
-for row in table:
-    ## print(row)
-    print("{last}, {first}\n"
-          "Course: {number} / {name} ({enrollment})\n"
-          "Special: {special}\n"  # COVID-19
-          "Common: {GH}{GW}{GE}{H}{O}\n"
-          "Notes: {common}\n"
-          "Uncommon: {GH-NS}{GE-NS}{A}{X}\n"
-          "Notes: {uncommon}\n"
-          "Other: {other}\n"
-          "".format(**row),
-          file=report_stream
-    )
+    # generate report
+    report_stream = open(report_filename,"w")
+
+    # add respondent name summary (used in reminder e-mail)
+    submitters = [
+        row["last"].title()
+        for row in table
+    ]
+    unique_submitters = sorted(list(set(submitters)))
+    print("Submitted: {}\n".format(", ".join(unique_submitters)),file=report_stream)
+    for row in table:
+        ## print(row)
+        print("{last}, {first}\n"
+              "Course: {number} / {name} ({enrollment})\n"
+              "Special: {special}\n"  # COVID-19
+              "Common: {GH}{GW}{GE}{H}{O}\n"
+              "Notes: {common}\n"
+              "Uncommon: {GH-NS}{GE-NS}{A}{X}\n"
+              "Notes: {uncommon}\n"
+              "Other: {other}\n"
+              "".format(**row),
+              file=report_stream
+        )

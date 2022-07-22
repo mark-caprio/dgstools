@@ -5,9 +5,18 @@ Extract faculty end-of-semester TA feedback/evaluations.
 
 Usage:
 
-  cd ta/21b/forms
-  python3 extract-ta-faculty-feedback.py
-  a2pdfify -f9 --truncate-lines=no ta-faculty-feedback-21b.txt
+    python3 ~/code/dgstools/dgstools/extract-ta-faculty-feedback.py
+    a2pdfify -f9 --truncate-lines=no ta-faculty-feedback-*.txt
+
+The config file "extract-ta.yml" is a YAML file with the following keys:
+
+    term (str): term as <yyx> ("a"=spring, "b"=fall)
+    response_filename_faculty_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_faculty_feedback (str): path to form response spreadsheet (CSV)
+    response_filename_student_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_student_feedback (str): path to form response spreadsheet (CSV)
+
+Requires: PyYAML
 
 Language: Python 3
 
@@ -23,8 +32,11 @@ University of Notre Dame
 12/07/20 (mac): Update for 20b.
 01/12/21 (mac): Update for 21a.
 12/06/21 (mac): Update to 21b.  Make term agnostic (ta-faculty-feedback.py).
+07/22/22 (mac): Switch from hard-coded parameters to YAML config file.
 
 """
+
+import yaml
 
 import spreadsheet
 
@@ -44,42 +56,47 @@ import spreadsheet
 #   "Special identifications (optional)"
 #   "Comments (to be shared with TA)"
 
-response_filename = "Faculty TA feedback (2021B).csv"
-report_filename = "ta-faculty-feedback-21b.txt"
+if (__name__=="__main__"):
 
-# configuration
-field_names = [
-    "timestamp","username",
-    "number","name",
-    "last","first",
-    "role","special",
-    "comments"
-]
+    # read configuration
+    with open("extract-ta.yml", "r") as f:
+        config = yaml.safe_load(f)
+    response_filename = config["response_filename_faculty_feedback"]
+    term = config["term"]
+    report_filename = "ta-faculty-feedback-{}.txt".format(term)
+    print("{} -> {}".format(response_filename,report_filename))
 
-# read file
-table = spreadsheet.read_spreadsheet_dictionary(
-    response_filename,
-    field_names,
-    skip=True
-)
-
-# filter out test submissions
-table = list(filter((lambda row : row["last"]!="TEST"),table))
-
-# sort by (lastname, firstname, timestamp)
-table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper(),row["number"],row["timestamp"])))
-
-# generate output tabulation
-report_stream = open(report_filename,"w")
-for row in table:
-    ## print(row)
-    short_special = row["special"].split(",")[0]
-    short_evaluator = row["username"].split("@")[0]
-    print("{last}, {first}\n"
-          "Course: PHYS {number} / {name} / {username}\n"
-          "Role: {role}\n"
-          "Special: {short_special}\n"
-          "Comments: {comments}\n"
-          "".format(short_evaluator=short_evaluator,short_special=short_special,**row),
-          file=report_stream
+    # read responses
+    field_names = [
+        "timestamp","username",
+        "number","name",
+        "last","first",
+        "role","special",
+        "comments"
+    ]
+    table = spreadsheet.read_spreadsheet_dictionary(
+        response_filename,
+        field_names,
+        skip=True
     )
+
+    # filter out test submissions
+    table = list(filter((lambda row : row["last"]!="TEST"),table))
+
+    # sort by (lastname, firstname, timestamp)
+    table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper(),row["number"],row["timestamp"])))
+
+    # generate report
+    report_stream = open(report_filename,"w")
+    for row in table:
+        ## print(row)
+        short_special = row["special"].split(",")[0]
+        short_evaluator = row["username"].split("@")[0]
+        print("{last}, {first}\n"
+              "Course: PHYS {number} / {name} / {username}\n"
+              "Role: {role}\n"
+              "Special: {short_special}\n"
+              "Comments: {comments}\n"
+              "".format(short_evaluator=short_evaluator,short_special=short_special,**row),
+              file=report_stream
+        )

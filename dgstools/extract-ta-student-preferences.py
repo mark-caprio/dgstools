@@ -1,13 +1,22 @@
 """
 extract-ta-student-preferences.py
 
-Extract questionnairre responses.
+Extract questionnaire responses.
 
 Usage:
 
-  cd ta/22a/forms
-  python3 extract-ta-student-preferences.py
-  a2pdfify -f9 --truncate-lines=no ta-student-preferences-22a.txt
+    python3 ~/code/dgstools/dgstools/extract-ta-student-preferences.py
+    a2pdfify -f9 --truncate-lines=no ta-student-preferences-22a.txt
+
+The config file "extract-ta.yml" is a YAML file with the following keys:
+
+    term (str): term as <yyx> ("a"=spring, "b"=fall)
+    response_filename_faculty_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_faculty_feedback (str): path to form response spreadsheet (CSV)
+    response_filename_student_preferences (str): path to form response spreadsheet (CSV)
+    response_filename_student_feedback (str): path to form response spreadsheet (CSV)
+
+Requires: PyYAML
 
 Language: Python 3
 
@@ -26,7 +35,11 @@ University of Notre Dame
 01/12/21 (mac): Update for 21a.
 08/08/21 (mac): Update for 21b.
 12/30/21 (mac): Update for 22a.  Make term agnostic (extract-ta-student-preferences).
+07/22/22 (mac): Switch from hard-coded parameters to YAML config file.
+
 """
+
+import yaml
 
 import spreadsheet
 
@@ -47,59 +60,64 @@ import spreadsheet
 #   "Is there a professor with whom you would have difficulty working?"
 
 
-# configuration
-filename = "Student TA preferences (2022A)-EDT.csv"
-report_filename = "ta-student-preferences-22a.txt"
+if (__name__=="__main__"):
+
+    # read configuration
+    with open("extract-ta.yml", "r") as f:
+        config = yaml.safe_load(f)
+    response_filename = config["response_filename_student_preferences"]
+    term = config["term"]
+    report_filename = "ta-student-preferences-{}.txt".format(term)
+    print("{} -> {}".format(response_filename,report_filename))
 
 
-field_names = [
-    "timestamp","username",
-    "last","first",
-    "preferred",
-    "class-conflict",
-    "sem-conflict",
-    "other",
-    "exclude"
+    field_names = [
+        "timestamp","username",
+        "last","first",
+        "preferred",
+        "class-conflict",
+        "sem-conflict",
+        "other",
+        "exclude"
+        ]
+    checkbox_newline_field_names = [
+        "preferred",
+        "class-conflict",
+        "sem-conflict",
     ]
-checkbox_newline_field_names = [
-    "preferred",
-    "class-conflict",
-    "sem-conflict",
-]
 
-# read file
-table = spreadsheet.read_spreadsheet_dictionary(
-    filename,
-    field_names,
-    skip=True
-)
-
-# filter out test submissions
-table = list(filter((lambda row : row["last"] not in ["TEST"]),table))
-
-# sort by (lastname, firstname)
-table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper())))
-
-# process tagged lines buttons
-for row in table:
-    spreadsheet.split_checkbox_responses(
-        row,checkbox_newline_field_names
+    # read responses
+    table = spreadsheet.read_spreadsheet_dictionary(
+        response_filename,
+        field_names,
+        skip=True
     )
 
-# generate output tabulation
-report_stream = open(report_filename,"w")
-for row in table:
-    ## print(row)
-    print("{last}, {first}\n"
-          "Preferred types:\n"
-          "{preferred}"
-          "Conflicts:\n"
-          "{class-conflict}"
-          "{sem-conflict}"
-          "Other: {other}\n"
-          "Exclude: {exclude}\n"
-          "".format(**row),
-          file=report_stream
-    )
-    #print("{1} {0} <{3}>,".format(*row))
-    pass
+    # filter out test submissions
+    table = list(filter((lambda row : row["last"] not in ["TEST"]),table))
+
+    # sort by (lastname, firstname)
+    table.sort(key=(lambda row : (row["last"].upper(),row["first"].upper())))
+
+    # process tagged lines
+    for row in table:
+        spreadsheet.split_checkbox_responses(
+            row,checkbox_newline_field_names
+        )
+
+    # generate report tabulation
+    report_stream = open(report_filename,"w")
+    for row in table:
+        ## print(row)
+        print("{last}, {first}\n"
+              "Preferred types:\n"
+              "{preferred}"
+              "Conflicts:\n"
+              "{class-conflict}"
+              "{sem-conflict}"
+              "Other: {other}\n"
+              "Exclude: {exclude}\n"
+              "".format(**row),
+              file=report_stream
+        )
+        #print("{1} {0} <{3}>,".format(*row))
