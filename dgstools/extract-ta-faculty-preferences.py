@@ -3,8 +3,6 @@ extract-ta-faculty-preferences.py
 
 Extract questionnaire responses.
 
-Requires: PyYAML
-
 Usage:
 
     python3 ~/code/dgstools/dgstools/extract-ta-faculty-preferences.py
@@ -17,6 +15,8 @@ The config file "extract-ta.yml" is a YAML file with the following keys:
     response_filename_faculty_feedback (str): path to form response spreadsheet (CSV)
     response_filename_student_preferences (str): path to form response spreadsheet (CSV)
     response_filename_student_feedback (str): path to form response spreadsheet (CSV)
+
+Requires: PyYAML
 
 Language: Python 3
 
@@ -75,7 +75,6 @@ if (__name__=="__main__"):
     # read configuration
     with open("extract-ta.yml", "r") as f:
         config = yaml.safe_load(f)
-
     response_filename = config["response_filename_faculty_preferences"]
     term = config["term"]
     report_filename = "ta-faculty-preferences-{}.txt".format(term)
