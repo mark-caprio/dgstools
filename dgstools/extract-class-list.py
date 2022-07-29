@@ -30,27 +30,27 @@ University of Notre Dame
 12/06/21 (mac): Update to 22a.  Make term agnostic (extract-class-list.py).
 04/12/22 (mac): Switch from hard-coded parameters to YAML config file.
 07/22/22 (mac): Switch input from legacy Class Search spreadsheet (before Summer 2022) to CourseLeaf spreadsheet.
+07/29/22 (mac): Add output of summary CSV spreadsheet.
 
 """
 
+import csv
 import datetime
 import yaml
 
 import spreadsheet
 
 ################################################################
-# global database configuration
+# CourseLeaf fields
 ################################################################
 
-# ,CLSS ID,CRN,Term,Term Code,Department Code,Subject Code,Catalog Number,Course,Section #,Course Title,Long Title,Title/Topic,Meeting Pattern,Meetings,Instructor,Room,Status,Part of Term,Campus,Inst. Method,Dept. Apr.,Credit Hrs Min,Credit Hrs,Grade Mode,Attributes,Course Attributes,Enrollment,Maximum Enrollment,Prior Enrollment,Cross-listings,Cross-list Maximum,Internal Memo to the Registrar,Comments (will display in class search)#1,Comments (will display in class search)#2
+# CourseLeaf fields as of 07/22:
 
-# configuration
-field_names = [
-    "course-section",  # broken into "course" and "section" fields in postprocessing
-    "title","credits","status","max","open","crosslist","crn",
-    "instructor","when","begin","end","where"
-]
-
+# ,CLSS ID,CRN,Term,Term Code,Department Code,Subject Code,Catalog Number,Course,Section #,
+# Course Title,Long Title,Title/Topic,Meeting Pattern,Meetings,Instructor,Room,Status,
+# Part of Term,Campus,Inst. Method,Dept. Apr.,Credit Hrs Min,Credit Hrs,Grade Mode,Attributes,
+# Course Attributes,Enrollment,Maximum Enrollment,Prior Enrollment,Cross-listings,Cross-list Maximum,
+# Internal Memo to the Registrar,Comments (will display in class search)#1,Comments (will display in class search)#2
 
 ################################################################
 # data input
@@ -130,9 +130,14 @@ def generate_database(database_filename, course_blacklist=[], debug=False):
         # copy simple fields
         entry["course"] = courseleaf_entry["Course"]
         entry["section"] = courseleaf_entry["Section #"]
+        entry["crn"] = courseleaf_entry["CRN"]
+        entry["enrollment"] = courseleaf_entry["Enrollment"]
+        entry["max_enrollment"] = courseleaf_entry["Maximum Enrollment"]
+        entry["xlist"] = courseleaf_entry["Cross-listings"]
         entry["title"] = courseleaf_entry["Course Title"]
         entry["when"] = courseleaf_entry["Meeting Pattern"]
-
+        entry["where"] = courseleaf_entry["Room"]
+        
         # process instructor
         raw_instructor = courseleaf_entry["Instructor"]
         # e.g., "Howk, Chris (JHOWK) [Primary, 50%]; Rudenga, Kristi (KRUDENGA) [50%]"
@@ -182,6 +187,44 @@ def generate_course_report(filename,database):
             
     report_stream.close()
 
+def generate_course_spreadsheet(filename,database):
+    """Generate spreadsheet of course info, as starting point for TA assignments.
+
+    Arguments:
+        filename (str) : filename for output stream
+        database (list of dict) : student database
+
+    """
+
+    output_fields = [
+        "course", "section", "crn", "enrollment", "max_enrollment", "xlist",
+        "title", "instructor", "when", "where"
+    ]
+    
+    with open(filename, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(output_fields)
+        ## print(
+        ##     "{course}, {section}, {crn}, {enrollment}, {max_enrollment}, {xlist}, {title}, {instructor}, {when}, {where}"
+        ##     "".format(
+        ##         course="course", section="section", crn="crn", enrollment="enrollment", max_enrollment="max_enrollment", xlist="xlist",
+        ##         title="title", instructor="instructor", when="when", where="where",
+        ##         ## course="Course", section="Section", crn="CRN", enrollment="Enrollment", max_enrollment="Max", cross_listings="Xlist",
+        ##         ## title="Title", instructor="Instructor", when="When", where="Where",
+        ##     ),
+        ##     file = report_stream
+        ## )
+        
+        for entry in database:
+            csv_writer.writerow([entry[field] for field in output_fields])
+            ## print(
+            ##     "{course}, {section}, {crn}, {enrollment}, {max_enrollment}, {xlist}, {title}, {instructor}, {when}, {where}"
+            ##     "".format(**entry),
+            ##     file = report_stream
+            ## )
+                
+            
+
 ################################################################
 # main program
 ################################################################
@@ -207,3 +250,5 @@ if (__name__=="__main__"):
     term = config["term"]
     report_filename = "classes-{}-{}.txt".format(term, date_code)
     generate_course_report(report_filename,database)
+    spreadsheet_filename = "classes-{}-{}.csv".format(term, date_code)
+    generate_course_spreadsheet(spreadsheet_filename,database)
