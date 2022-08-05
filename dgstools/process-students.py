@@ -126,6 +126,34 @@ field_names = [
 ]
 
 ################################################################
+# funding codes
+################################################################
+
+TEACHING_STATUS_BY_FUNDING_CODE = {
+    # standard
+    "TA": True,  # TA funding from GA funds
+    "TA-univ": False,  # teaching role supervised and paid by university source (no departmental TA assignment)
+    "RA": False,  # RA from advisor's research funds
+    "RA-ext": False,  # RA paid directly by external source (e.g., collaborator at national lab)
+    "RA-intern": False,  # internship paid directly by external source (c.f. "Fellow-ext")
+    "RA-univ": False,  # RA paid by another part of university
+    "Fellow-dept": False,  # deparmental endowed fellowship
+    "Fellow-univ": False,  # university fellowship (covering base stipend)
+    "Fellow-ext": False,  # external fellowship
+    "NS": False,  # no support
+    "G": False,  # graduated (no support)
+    # legacy codes
+    "Fellow": False,  # deprecated in favor of specific "Fellow-" code above
+    "TA-NA": False,  # TA with no assignment (special GA support, deprecated in favor of "GA")
+    "Fellow-remote": False,  # GA funded 20b special arrangement
+    # hybrid support
+    #
+    # TODO: parse slashed support into tokens and eliminate from this dictionary
+    "TA/RA": True,
+    "RA/Fellow-ext": False,
+}
+
+################################################################
 # area formatting utility
 ################################################################
 
@@ -220,21 +248,15 @@ def get_ta_status_flag(funding_status):
     else:
         base_status = funding_status.split()[0]
 
-    if (base_status in [
-            # standard
-            "G","NS","RA","RA-ext","RA-intern","RA-univ","Fellow-ext","Fellow-univ","Fellow-dept",
-            # special case
-            "TA-NA",  # TA with no assignment (special GA support)
-            "Fellow-remote",  # GA funded 20b special arrangement
-            "GA",  # special GA support
-            # legacy
-            "Fellow"
-    ]):
-        # RA or unfunded or otherwise no teaching duty
-        flag=""
-    elif (base_status in ["TA","TA/RA"]):
-        # TA
-        flag="*"
+    base_status_components = base_status.split("/")
+    
+    if base_status in TEACHING_STATUS_BY_FUNDING_CODE:
+        if TEACHING_STATUS_BY_FUNDING_CODE[base_status]:
+            # TA
+            flag="*"
+        else:
+            # RA or unfunded or otherwise no teaching duty
+            flag=""
     else:
         # fallthrough
         flag="?"
@@ -708,24 +730,17 @@ def report_student_status_for_ta_assignment(filename,database,funding_field,mode
         else:
             base_status = funding_status.split()[0]
             status_annotation = funding_status.split()[1]
-        if (base_status in ["RA","RA-ext","RA-intern","TA-univ","TA-NA","GA","Fellow-remote","Fellow-ext","Fellow-univ","Fellow-dept","Fellow","NS","G",""]):  # "Fellow" is legacy
-            # RA or unfunded
+        if (base_status in TEACHING_STATUS_BY_FUNDING_CODE and not TEACHING_STATUS_BY_FUNDING_CODE[base_status]):
+            # nonteaching role
             hours="0"
-        ## elif (base_status[0:2]=="RA"):
-        ##     # external RA
-        ##     hours="0"
         elif (base_status=="TA"):
-            if (funding_status=="TA"):
-                # plain TA
-                hours="15"
-            else:
-                # fellowship TA -- TODO fill in all cases
-                if (status_annotation=="(Schmitt)" and entry["year"]<="2"):
+                if (status_annotation in ["(Schmitt)", "(Notebaert)"] and entry["year"]<="2"):
+                    # fellowship TA with reduced hours
                     hours="9"
                 else:
                     hours="15"
         else:
-            # fallthrough (includes "TA/RA")
+            # fallthrough (includes "TA/RA", with hours to be determined manually)
             hours="???"
 
         # generate line for entry
