@@ -1,0 +1,25 @@
+# configuration for extract-scheduling.py
+
+response_filename: "sophsem22-scheduling.csv"
+report_filename: "sophsem22-scheduling.txt"
+dates:
+    - 8/23
+    - 8/30
+    - 9/6
+    - 9/13
+    - 9/20
+    - 9/27
+    - 10/4
+    - 10/11
+    - 10/25
+    - 11/1
+    - 11/8
+    - 11/15
+    - 11/22
+    - 11/29
+    - 12/6
+response_codes:
+    "Yes": "O"
+    "Yes (if need be)": "."
+    "Maybe (conflict to be confirmed)": "?"
+    "No": "-"
