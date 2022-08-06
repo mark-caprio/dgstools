@@ -6,7 +6,7 @@ Extract questionnaire responses.
 Usage:
 
     python3 ~/code/dgstools/dgstools/extract-ta-faculty-preferences.py
-    a2pdfify -f9 --truncate-lines=no ta-faculty-preferences-22a.txt
+    a2pdfify -f9 --truncate-lines=no ta-faculty-preferences-*.txt
 
 The config file "extract-ta.yml" is a YAML file with the following keys:
 
@@ -86,7 +86,6 @@ if (__name__=="__main__"):
         "last","first",
         "number","name",
         "enrollment",
-        "special",
         "GH","GW","GE","H","O","common",  # note HO were combined in TA survey
         "GH-NS","GE-NS","A","X","uncommon",  # caveat: "GH-NS" didn't actually say "grading"
         "other"
@@ -118,7 +117,6 @@ if (__name__=="__main__"):
         ## print(row)
         print("{last}, {first}\n"
               "Course: {number} / {name} ({enrollment})\n"
-              "Special: {special}\n"  # COVID-19
               "Common: {GH}{GW}{GE}{H}{O}\n"
               "Notes: {common}\n"
               "Uncommon: {GH-NS}{GE-NS}{A}{X}\n"
