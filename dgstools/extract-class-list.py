@@ -13,10 +13,6 @@ The config file "process-students.yml" is a YAML file with the following keys:
     database_filename (str): path to registrar class spreadsheet (CSV)
     course_blacklist (list of str): course numbers to omit from report
 
-Limitations:
-
-    - Multiple instructors for a course are dropped.
-
 Invocation:
 
    python3 ~/code/dgstools/dgstools/extract-class-list.py
@@ -141,16 +137,16 @@ def generate_database(database_filename, course_blacklist=[], debug=False):
         # process instructor
         raw_instructor = courseleaf_entry["Instructor"]
         # e.g., "Howk, Chris (JHOWK) [Primary, 50%]; Rudenga, Kristi (KRUDENGA) [50%]"
-        raw_instructor_list = raw_instructor.split(";")
-        instructor_list = []
-        short_instructor_list = []
+        raw_instructor_list = raw_instructor.split(";")  # split multiple instructors on semicolon
+        instructor_list = []  # collection of "Lastname, Firstname" or TBD
+        short_instructor_list = []  # collection of "Lastname" or TBD
         for instructor in raw_instructor_list:
-            if instructor.find("To Be Determined") >=0:
+            if instructor.find("To Be Determined") >=0:  # trap TBD instructor
                 instructor_list.append("TBD")
                 short_instructor_list.append("TBD")
                 continue
-            last, _, rest = instructor.strip().partition(", ")
-            first, _, _ = rest.partition(" ")
+            last, _, rest = instructor.strip().partition(", ")  # peel off last name
+            first, _, _ = rest.partition(" ")  # peel off first name
             instructor_list.append("{}, {}".format(last,first))
             short_instructor_list.append(last)
         entry["instructor"] = " & ".join(instructor_list)
@@ -204,24 +200,9 @@ def generate_course_spreadsheet(filename,database):
     with open(filename, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(output_fields)
-        ## print(
-        ##     "{course}, {section}, {crn}, {enrollment}, {max_enrollment}, {xlist}, {title}, {instructor}, {when}, {where}"
-        ##     "".format(
-        ##         course="course", section="section", crn="crn", enrollment="enrollment", max_enrollment="max_enrollment", xlist="xlist",
-        ##         title="title", instructor="instructor", when="when", where="where",
-        ##         ## course="Course", section="Section", crn="CRN", enrollment="Enrollment", max_enrollment="Max", cross_listings="Xlist",
-        ##         ## title="Title", instructor="Instructor", when="When", where="Where",
-        ##     ),
-        ##     file = report_stream
-        ## )
         
         for entry in database:
             csv_writer.writerow([entry[field] for field in output_fields])
-            ## print(
-            ##     "{course}, {section}, {crn}, {enrollment}, {max_enrollment}, {xlist}, {title}, {instructor}, {when}, {where}"
-            ##     "".format(**entry),
-            ##     file = report_stream
-            ## )
                 
             
 
