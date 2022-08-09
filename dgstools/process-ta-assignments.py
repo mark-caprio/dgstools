@@ -29,6 +29,7 @@ University of Notre Dame
 01/20/21 (mac): Update to 21a (21a-process-ta-assignments.py).
 08/13/21 (mac): Update to 21b.  Make term agnostic (process-ta-assignments.py).
 01/02/22 (mac): Absorb timeslot handling from spreadsheet.py and make more robust.
+08/09/22 (mac): Update TA slot fields to new CourseLeaf-based format.  Remove data dumps.
 """
 
 import datetime
@@ -175,11 +176,18 @@ def read_slots(filename):
         "ta","conflicts","notes","history"
         ]
 
+    field_names = [
+        # registrar CourseLeaf fields (via extract-class-list.py)
+        "course","section","crn","enrollment","max_enrollment","xlist","title","instructor","when","where",
+        # add-on fields
+        "time_relevant","exams","role","hours","ta","conflicts","notes","candidates"
+    ]
+
     # read file
     table = spreadsheet.read_spreadsheet_dictionary(filename,field_names,skip=True,restval="")
 
     # suppress lines with no course number
-    table = list(filter((lambda record : record["course_section"]!=""),table))
+    table = list(filter((lambda record : record["course"]!=""),table))
 
     # convert raw byte strings
     ## table = list(map((lambda),table))
@@ -190,17 +198,12 @@ def read_slots(filename):
 
         # split out section number from course number
         #   also clean up any terminal "*" on section number
-        course_section_parts = record["course_section"].split("-")
-        record["course"] = course_section_parts[0]
+     
         record["course_or_none"] = course_or_none(record["course"])
-        record["section"] = ""
-        if len(course_section_parts)>1:
-            record["section"] = course_section_parts[1]
-        record["section"] = record["section"].rstrip("*")
-
+     
         # formatted version of section (possibly suppressed)
-        record["section_and_when_relevant"] = (record["section_and_when_relevant"]=="X")
-        if (record["section_and_when_relevant"]):
+        record["time_relevant"] = (record["time_relevant"]=="X")
+        if (record["time_relevant"]):
             record["section_or_none"] = record["section"]
         else:
             record["section_or_none"] = ""
@@ -213,8 +216,8 @@ def read_slots(filename):
         # generate reported time
         # 
         # May be reformatted "when" if relevant to assignment, else exam dates if exist.
-        if (record["section_and_when_relevant"]):
-            record["when_or_exams"] = compress_registrar_timeslot(record["when"])
+        if (record["time_relevant"]):
+            record["when_or_exams"] = record["when"]
         elif (record["exams"]!=""):
             record["when_or_exams"] = record["exams"]
         else:
@@ -228,7 +231,7 @@ def read_slots(filename):
     return table
 
 ################################################################
-# special handling of registrar input fields
+# special handling of registrar input fields (legacy ClassSearch)
 ################################################################
 
 def compress_registrar_timeslot_single(timeslot):
@@ -449,53 +452,6 @@ def collect_slots_by_ta(slots_table,ta_keys,key_dict,ta_info_by_ta):
 
 
 ################################################################
-# input data dumps
-################################################################
-
-def dump_slots(file,slots_table):
-    """ Provide formatted ASCII dump of slots table.
-
-    Arguments:
-        file (stream) : output stream
-        slots_table (list of dict) : table of TA slot records
-    """
-    for record in slots_table:
-        ## print(record)
-        print(
-            "{course_or_none:9} {section:2} {short_title:{title_width}} {short_instructor:{instructor_width}} {short_when:20} "
-            "{short_role:{role_width}} {hours:2} "
-            "{ta} "
-            "{notes} {history}"
-            "".format(
-                short_when=spreadsheet.truncate_string(record["when"],20),
-                short_role=spreadsheet.truncate_string(record["role"],report_field_widths["role_width"]),
-                short_title=spreadsheet.truncate_string(record["title"],report_field_widths["title_width"]),
-                short_instructor=spreadsheet.truncate_string(record["instructor"],report_field_widths["instructor_width"]),
-                **spreadsheet.dict_union(record,report_field_widths)
-            ),
-            file=file
-        )
-
-def dump_roster(file,roster_table):
-    """ Provide formatted ASCII dump of hours table.
-
-    Arguments:
-        file (stream) : output stream
-        roster_table (list of dict) : table of TA hours records
-    """
-    for record in roster_table:
-        print(
-            "{short_last:20} {short_first:20} {quota:2} "
-            "{key:20}"
-            "".format(
-                short_last=spreadsheet.truncate_string(record["last"],20),
-                short_first=spreadsheet.truncate_string(record["first"],20),
-                **record
-            ),
-            file=file
-        )
-
-################################################################
 # output reports
 ################################################################
 
@@ -680,20 +636,6 @@ def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
 # control code
 ################################################################
 
-def dump_input_data(roster_table,slots_table,report_version_info):
-    """"""
-    # dump listing of roster with "lastname:firstname" keys (for debugging purposes)
-    report_filename = "assignments{}-roster-dump.txt".format(report_version_info["flag"])
-    report_stream = open(report_filename,"w")
-    dump_roster(report_stream,roster_table)
-    report_stream.close()
-
-    # dump listing of slots (for debugging purposes)
-    report_filename = "assignments{}-slots-dump.txt".format(report_version_info["flag"])
-    report_stream = open(report_filename,"w")
-    dump_slots(report_stream,slots_table)
-    report_stream.close()
-
 def process_database(roster_table,slots_table):
     """"""
 
@@ -754,7 +696,6 @@ report_version_info["date"] = today.strftime("%m/%d/%Y")
 # read input data
 roster_table = read_roster("ta-roster.csv")
 slots_table = read_slots("ta-assignments.csv")
-dump_input_data(roster_table,slots_table,report_version_info)
 
 # process database
 ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course = process_database(roster_table,slots_table)
