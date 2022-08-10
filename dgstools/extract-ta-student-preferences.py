@@ -6,7 +6,7 @@ Extract questionnaire responses.
 Usage:
 
     python3 ~/code/dgstools/dgstools/extract-ta-student-preferences.py
-    a2pdfify -f9 --truncate-lines=no ta-student-preferences-22a.txt
+    a2pdfify -f9 --truncate-lines=no ta-student-preferences-*.txt
 
 The config file "extract-ta.yml" is a YAML file with the following keys:
 
