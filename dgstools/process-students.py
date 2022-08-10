@@ -47,6 +47,7 @@ University of Notre Dame
 01/18/20 (mac): Add support for research committee assignment proccess.
 12/07/21 (mac): Make term agnostic (process-students.py).
 02/02/22 (mac): Switch from hard-coded parameters to YAML config file.
+08/10/22 (mac): Permit null advisor.
 
 """
 
@@ -366,21 +367,29 @@ def generate_database(funding_keys, verbose=False):
         # clean up casing
         entry["netid"] = entry["netid"].lower()
 
-        # process advisor
+        # extract advisor and coadvisor
         advisor_composite=entry["advisor_composite"].strip()
         advisor_split_slash = list(map(str.strip,advisor_composite.split("/")))
-        advisor_split_and = list(map(str.strip,advisor_composite.split(" and ")))  # require spaces, else splits on "Randal"!
+        advisor_split_and = list(map(str.strip,advisor_composite.split(" and ")))  # require spaces around "and", else splits on "Randal"!
         if (len(advisor_split_slash)==2):
+            # coadvisors, separated by a slash
             advisor_list = advisor_split_slash
         elif (len(advisor_split_and)==2):
+            # coadvisors, separated by "and" (legacy)
             advisor_list = advisor_split_and
-        elif (len(advisor_composite)>0):
+        elif len(advisor_composite)>0 and advisor_composite != "DGS":
+            # no coadvisors, but nonnull string, means just a single advisor
+            # (also skip students marked with legacy code "DGS" for student with
+            # no research advisor)
             advisor_list = [entry["advisor_composite"]]
         else:
-            print("ERROR: missing advisor for {last}, {first}".format(**entry))
-            raise(ValueError("missing advisor"))
+            # no advisor at all
+            advisor_list = []
         advisor_list = list(map(regularize_name,advisor_list))  # regularize names
-        entry["advisor"] = advisor_list[0]
+        if len(advisor_list)>=1:
+            entry["advisor"] = advisor_list[0]
+        else:
+            entry["advisor"] = ""
         if (len(advisor_list)==2):
             entry["coadvisor"] = advisor_list[1]
         else:
@@ -433,6 +442,8 @@ def generate_database(funding_keys, verbose=False):
                 print("WARN: missing candidacy invitation date for {last}, {first}".format(**entry))
         if (entry["candidacy_invited"]=="No"):
             if ((entry["candidacy_invitation_date"]!="") or (entry["candidacy_written_date"]!="") or (entry["candidacy_oral_date"]!="")):
+                print("{last}, {first}: candidacy_invited '{candidacy_invited}', candidacy_invitation_date '{candidacy_invitation_date}', "
+                      "candidacy_written_date '{candidacy_written_date}', candidacy_oral_date '{candidacy_oral_date}'".format(**entry))
                 print("WARN: inconsistent candidacy status for {last}, {first}".format(**entry))
 
         # candidacy status
