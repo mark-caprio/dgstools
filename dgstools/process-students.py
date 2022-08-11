@@ -559,7 +559,7 @@ faculty_legend_tenure = faculty_legend_base + (
 ################################################################
 
 def key_kicking_dgs_to_end(name):
-    """ Key function to help sort faculty names, putting "DGS"/"TBD" at end of list."""
+    """ Key function to help sort faculty names, putting ""/"DGS"/"TBD" at end of list."""
     return "ZZZZZ"+name if not (" " in name) else name
 
 ################################################################
@@ -727,8 +727,8 @@ def report_student_status_for_ta_assignment(filename,database,funding_field,mode
         if (float(entry["year"])==0):
             continue
 
-        # ordering by: name
-        key = (entry["last"],entry["first"],float(entry["year"]))
+        # ordering by: name-year (which means by name except in extraordinary circumstances)
+        key = (entry["last"].upper(),entry["first"].upper(),float(entry["year"]))
 
         # determine TA hours by heuristic
         funding_status = entry[funding_field]
