@@ -5,6 +5,11 @@
 #
 # Example:
 #     ptadiff 21b 2 3
+if (("$3" == "") || ("$1" == "-h") || ("$1" == "--help")) then
+  echo "ptadiff <term> <version_a> <version_b>"
+  exit
+endif
+
 foreach type ( ta course )
   diff --unified=999 assignments-$1-v$2-${type}.txt assignments-$1-v$3-${type}.txt > diff-v$2-v$3-${type}.txt
 end
