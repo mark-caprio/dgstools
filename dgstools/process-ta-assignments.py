@@ -53,11 +53,11 @@ import spreadsheet
 #     possible filling as resources allow, cleaner than deleting course number
 #     to obtain suppression)
 
-ta_exclusion_list = [None,"","?","X","."]
-ta_suppression_list = ["."]
+TA_EXCLUSION_LIST = [None,"","?","X","."]
+TA_SUPPRESSION_LIST = ["."]
 
 # report formatting
-report_field_widths = {
+REPORT_FIELD_WIDTHS = {
     "title_width" : 25,      # course title (truncated for report line, not header line, seems 30 suffices)
     "instructor_width" : 15, # instructor name (truncated for report line, not header line) 
     "fullname_width" : 28,   # for "Last, First (Year)" output
@@ -66,34 +66,25 @@ report_field_widths = {
 }
 
 # header
-report_version_info = {
-    "term_name" : "Spring 2022",
-    "term_code" : "22a",
+REPORT_VERSION_INFO = {
+    "term_name" : "Fall 2022",
+    "term_code" : "22b",
     "version" : None,
     "date" : None
 }
 
-# special treatment of course_section field
+# special treatment of course numbers
 #
-#   - course number and section are split on hyphen
-#
-#   - course numbers alphabetically greater than "PHYS99900" are used for
-#     sorting purposes but printed as dashes
+#   - course numbers alphabetically greater than "PHYS 99900" are used for
+#     sorting purposes but printed as X's
 
-course_none_threshold = "PHYS99900"
-course_none_text = "PHYSXXXXX"
+COURSE_NONE_THRESHOLD = "PHYS 99900"
+COURSE_NONE_TEXT = "PHYS XXXXX"
 
 def course_or_none(course):
-    return course if (course<=course_none_threshold) else course_none_text
-
-################################################################
-# helper functions
-################################################################
-
-## def suppress_zero(s):
-##     """ Suppress section number string "00".
-##     """
-##     return s.replace("00","")
+    """ Provide special formatting of fictitious course numbers.
+    """
+    return course if (course<=COURSE_NONE_THRESHOLD) else COURSE_NONE_TEXT
 
 ################################################################
 # input filters
@@ -113,8 +104,7 @@ def read_roster(filename):
         filename (str) : input filename
     
     Returns:
-       (list of dict) : TA records in input order
-           ta_info_by_ta (dict of dict) : TA hours records by "last" or "last:first"
+       roster_table (list of dict) : TA records in input order
 
     """
 
@@ -126,19 +116,19 @@ def read_roster(filename):
         ]
 
     # read file
-    table = spreadsheet.read_spreadsheet_dictionary(filename,field_names,skip=False)
+    roster_table = spreadsheet.read_spreadsheet_dictionary(filename,field_names,skip=False)
 
     # suppress lines with no name
-    table = list(filter((lambda record : record["last"]!=""),table))
+    roster_table = list(filter((lambda record : record["last"]!=""),roster_table))
 
     # process fields
-    for record in table:
+    for record in roster_table:
         # convert hours to number
         record["quota"] = int(record["quota"])
         # add fullname key
         record["key"] = "{last}:{first}".format(**record)
 
-    return table
+    return roster_table
 
 def read_slots(filename):
     """Read and postprocess TA slots table.
@@ -200,11 +190,19 @@ def read_slots(filename):
         #   also clean up any terminal "*" on section number
      
         record["course_or_none"] = course_or_none(record["course"])
-     
+
+        # force section to integer for sorting
+        #
+        # Otherwise, e.g., section "10" comes lexicographically before section "9".
+        if record["section"] == "":
+            record["section"] = 0
+        else:
+            record["section"] = int(record["section"])
+        
         # formatted version of section (possibly suppressed)
         record["time_relevant"] = (record["time_relevant"]=="X")
         if (record["time_relevant"]):
-            record["section_or_none"] = record["section"]
+            record["section_or_none"] = "{:02d}".format(record["section"])
         else:
             record["section_or_none"] = ""
 
@@ -231,7 +229,9 @@ def read_slots(filename):
     return table
 
 ################################################################
-# special handling of registrar input fields (legacy ClassSearch)
+# special handling of registrar input fields
+#
+# for legacy ClassSearch course data (no longer used)
 ################################################################
 
 def compress_registrar_timeslot_single(timeslot):
@@ -296,7 +296,7 @@ def unique_courses(slots_table):
         slots_table (list of dict) : TA slot records
     
     Returns:
-        (list of str) : sorted list of course numbers
+        course_list (list of str) : sorted list of course numbers
 
     """
 
@@ -329,8 +329,6 @@ def index_roster(roster_table):
         roster_table (list of dict) : TA records in input order
     
     Returns:
-        (tuple) : (ta_keys,key_dict,ta_info_by_ta)
-
         ta_keys (list of str) : list of ta keys in input order
         key_dict (dict) : mapping from all accepted ta identifier values (str) to canonical key "last:first" (str)
         ta_info_by_ta (dict) : mapping from canonical key "last:first" (str) to ta record (dict)
@@ -347,7 +345,7 @@ def index_roster(roster_table):
         key_dict[record["key"]] = record["key"]
         ta_info_by_ta[record["key"]] = record
 
-    return (ta_keys,key_dict,ta_info_by_ta)
+    return ta_keys, key_dict, ta_info_by_ta
 
 def tally_hours(slots_table,ta_keys,key_dict):
     """Accumulate hours on per-TA basis.
@@ -360,7 +358,7 @@ def tally_hours(slots_table,ta_keys,key_dict):
         key_dict (dict of str) : lookup from ta field value to key
 
     Returns:
-        (dict) : mapping from key to assigned hours
+        hours_by_ta (dict) : mapping from key to assigned hours
     """
 
     # ensure that hours are populated for all known TAs
@@ -369,7 +367,7 @@ def tally_hours(slots_table,ta_keys,key_dict):
     # accumulate hours
     for record in slots_table:
         # skip unfilled slot
-        if (record["ta"] in ta_exclusion_list):
+        if (record["ta"] in TA_EXCLUSION_LIST):
             continue
         # increment hours for TA
         try:
@@ -390,7 +388,7 @@ def collect_slots_by_course(slots_table,course_list):
         course_list (list of str) : sorted list of course numbers
 
     Returns:
-        (dict) : mapping from course number to list of slot records
+        slots_by_course (dict) : mapping from course number to list of slot records
     """
 
     # set up repository for slots by course
@@ -424,7 +422,7 @@ def collect_slots_by_ta(slots_table,ta_keys,key_dict,ta_info_by_ta):
         ta_info_by_ta (dict of dict) : TA records by key
 
     Returns:
-        (dict) : mapping from key to list of slot records
+        slots_by_ta (dict) : mapping from key to list of slot records
     """
 
     # ensure that assignments are populated for all known TAs
@@ -437,7 +435,7 @@ def collect_slots_by_ta(slots_table,ta_keys,key_dict,ta_info_by_ta):
     # accumulate assignments
     for slot in slots_table:
         # skip unfilled slot
-        if (slot["ta"] in ta_exclusion_list):
+        if (slot["ta"] in TA_EXCLUSION_LIST):
             continue
         # accumulate assignment for TA
         ta = key_dict[slot["ta"]]
@@ -455,21 +453,32 @@ def collect_slots_by_ta(slots_table,ta_keys,key_dict,ta_info_by_ta):
 # output reports
 ################################################################
 
-def report_slots_by_course(file,ta_info_by_ta,course_list,key_dict,hours_by_ta,slots_by_course,show_netid=False):
-    """ Provide formatted ASCII dump of slots_by_course dictionary.
+def report_slots_by_course(
+        file,ta_info_by_ta,course_list,key_dict,hours_by_ta,slots_by_course,
+        show_netid=False,
+):
+    """Provide report of assignments organized by course.
+
+    Can optionally (with show_netid set to true) generate provide CRN/netid data
+    to facilitate reporting TA assignments to registrar.
 
     Arguments:
         file (stream): output stream
-        ...
-        show_netid (bool,optional): whether or not to report section's CRN
+        ta_info_by_ta (dict of dict) : TA records by key
+        course_list (list of str) : sorted list of course numbers
+        key_dict (dict) : mapping from all accepted ta identifier values (str) to canonical key "last:first" (str)
+        hours_by_ta (dict) : mapping from key to assigned hours
+        slots_by_course (dict) : mapping from course number to list of slot records
+        show_netid (bool, optional): whether or not to report section's CRN
             and TA's netid (to provide to registrar)
+
     """
 
     # header
     print(
         "TA assignments {term_name} (by course)\n"
         "Version {version}, {date}\n"
-        "".format(**report_version_info),
+        "".format(**REPORT_VERSION_INFO),
         file=file
     )
 
@@ -494,7 +503,7 @@ def report_slots_by_course(file,ta_info_by_ta,course_list,key_dict,hours_by_ta,s
             crn = slot["crn"]
 
             # look up TA info
-            if (slot["ta"] not in ta_exclusion_list):
+            if (slot["ta"] not in TA_EXCLUSION_LIST):
                 ta = key_dict[slot["ta"]]  # only attempt lookup after verified not in exclusion list
                 ta_record = ta_info_by_ta[ta];
                 fullname = "{last}, {first} ({year})".format(**ta_record)
@@ -504,7 +513,7 @@ def report_slots_by_course(file,ta_info_by_ta,course_list,key_dict,hours_by_ta,s
                 fullname = "????????"
 
             # print entry
-            if (slot["ta"] not in ta_suppression_list):
+            if (slot["ta"] not in TA_SUPPRESSION_LIST):
                 netid_field = "  [{:5} / {:8}]".format(crn,netid) if show_netid else ""
                 ## netid_field = "  [{:8}]".format(netid) if show_netid else ""
                 print(
@@ -512,11 +521,11 @@ def report_slots_by_course(file,ta_info_by_ta,course_list,key_dict,hours_by_ta,s
                     "{course_or_none:9} {section_or_none:2} "
                     "{short_role:{role_width}} {hours:2}   {fullname:{fullname_width}}{netid_field}   {when_or_exams}"
                     "".format(
-                        fullname=fullname,
-                        short_role=spreadsheet.truncate_string(slot["role"],report_field_widths["role_width"]),
+                        fullname=spreadsheet.truncate_string(fullname,REPORT_FIELD_WIDTHS["fullname_width"]),
+                        short_role=spreadsheet.truncate_string(slot["role"],REPORT_FIELD_WIDTHS["role_width"]),
                         short_title=spreadsheet.truncate_string(slot["title"],20),
                         netid_field=netid_field,
-                        **spreadsheet.dict_union(slot,report_field_widths)
+                        **spreadsheet.dict_union(slot,REPORT_FIELD_WIDTHS)
                     ),
                 file=file
                 )
@@ -525,13 +534,16 @@ def report_slots_by_course(file,ta_info_by_ta,course_list,key_dict,hours_by_ta,s
 def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
     """Provide report of assignments organized by TA.
 
-    Each TA's hours assigned and hour quotas can be listed for
-    assistance in assembling the TA assignments, with flags for TAs
-    who are under/at/over quota.
+    Alternatively (with mode "quota") provides summary of all TAs' hours
+    assigned and hour quotas, for assistance in assembling the TA assignments.
+    A flag column makrs TAs who are under/approaching/at/over quota.
 
     Arguments:
         file (stream): output stream
-        ...
+        ta_info_by_ta (dict of dict) : TA records by key
+        ta_keys (list of str) : list of ta keys
+        hours_by_ta (dict) : mapping from key to assigned hours
+        slots_by_ta (dict) : mapping from key to list of slot records
         mode (str): report mode ("quota" or "slots")
 
     """
@@ -549,7 +561,7 @@ def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
     print(
         "TA assignments {term_name} (by TA)\n"
         "Version {version}, {date}\n"
-        "".format(**report_version_info),
+        "".format(**REPORT_VERSION_INFO),
         file=file
     )
 
@@ -596,16 +608,17 @@ def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
         if (show_hours):
             print(
                 "{fullname:{fullname_width}} {hours:2} / {quota:2} {marker:3}".format(
-                    fullname=fullname,hours=hours,quota=quota,marker=marker,
-                    **report_field_widths
+                    fullname=spreadsheet.truncate_string(fullname,REPORT_FIELD_WIDTHS["fullname_width"]),  # do truncate name in quota report
+                    hours=hours,quota=quota,marker=marker,
+                    **REPORT_FIELD_WIDTHS
                 ),
                 file = file
             )
         else:
             print(
                 "{fullname:{fullname_width}}".format(
-                    fullname=fullname,
-                    **report_field_widths
+                    fullname=fullname,  # do not truncate name in slots report
+                    **REPORT_FIELD_WIDTHS
                 ),
                 file = file
             )
@@ -618,10 +631,10 @@ def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
                     "{course_or_none:9} {section_or_none:2} {short_title:{title_width}}   {short_instructor:{instructor_width}}   "
                     "{short_role:{role_width_by_ta}} {hours:2}   {when_or_exams}"
                     "".format(
-                        short_role=spreadsheet.truncate_string(slot["role"],report_field_widths["role_width_by_ta"]),
-                        short_title=spreadsheet.truncate_string(slot["title"],report_field_widths["title_width"]),
-                        short_instructor=spreadsheet.truncate_string(slot["instructor"],report_field_widths["instructor_width"]),
-                        **spreadsheet.dict_union(slot,report_field_widths)
+                        short_role=spreadsheet.truncate_string(slot["role"],REPORT_FIELD_WIDTHS["role_width_by_ta"]),
+                        short_title=spreadsheet.truncate_string(slot["title"],REPORT_FIELD_WIDTHS["title_width"]),
+                        short_instructor=spreadsheet.truncate_string(slot["instructor"],REPORT_FIELD_WIDTHS["instructor_width"]),
+                        **spreadsheet.dict_union(slot,REPORT_FIELD_WIDTHS)
                     ),
                 file=file
                 )
@@ -637,7 +650,18 @@ def report_slots_by_ta(file,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode):
 ################################################################
 
 def process_database(roster_table,slots_table):
-    """"""
+    """Process data into dictionaries.
+
+    For definitions of arguments and return values, see docstrings for
+    individual processing functions.
+
+    Arguments:
+        roster_table, slots_table
+
+    Returns:
+        ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course
+
+    """
 
     # set up ta indexing
     (ta_keys,key_dict,ta_info_by_ta) = index_roster(roster_table)
@@ -652,29 +676,38 @@ def process_database(roster_table,slots_table):
     
     return ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course
 
-def prepare_reports(ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course, report_version_info):
-    """"""
+def prepare_reports(ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course):
+    """ Generate reports from data as processed into dictionaries.
+
+    For definitions of arguments and return values, see docstrings for
+    individual processing functions.
+
+    Arguments:
+        ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course
+        REPORT_VERSION_INFO (dict): term and version information for header
+
+    """
     
     # report by course
-    report_filename = "assignments{}-course.txt".format(report_version_info["flag"])
+    report_filename = "assignments{}-course.txt".format(REPORT_VERSION_INFO["flag"])
     report_stream = open(report_filename,"w")
     report_slots_by_course(report_stream,ta_info_by_ta,course_list,key_dict,hours_by_ta,slots_by_course)
     report_stream.close()
 
     # report by ta
-    report_filename = "assignments{}-ta.txt".format(report_version_info["flag"])
+    report_filename = "assignments{}-ta.txt".format(REPORT_VERSION_INFO["flag"])
     report_stream = open(report_filename,"w")
     report_slots_by_ta(report_stream,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode="slots")
     report_stream.close()
 
     # report by ta -- with netid
-    report_filename = "assignments{}-ta-netid.txt".format(report_version_info["flag"])
+    report_filename = "assignments{}-ta-netid.txt".format(REPORT_VERSION_INFO["flag"])
     report_stream = open(report_filename,"w")
     report_slots_by_course(report_stream,ta_info_by_ta,course_list,key_dict,hours_by_ta,slots_by_course,show_netid=True)
     report_stream.close()
 
     # report hours
-    report_filename = "assignments{}-hours.txt".format(report_version_info["flag"])
+    report_filename = "assignments{}-hours.txt".format(REPORT_VERSION_INFO["flag"])
     report_stream = open(report_filename,"w")
     report_slots_by_ta(report_stream,ta_info_by_ta,ta_keys,hours_by_ta,slots_by_ta,mode="quota")
     report_stream.close()
@@ -683,23 +716,26 @@ def prepare_reports(ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, 
 # main program
 ################################################################
 
-# set up report version info
-if (len(sys.argv) > 1):
-    report_version_info["version"] = sys.argv[1]
-    report_version_info["flag"] = "-{term_code}-v{version:s}".format(**report_version_info)
-else:
-    report_version_info["version"] = "0"
-    report_version_info["flag"] = ""
-today = datetime.date.today()
-report_version_info["date"] = today.strftime("%m/%d/%Y")
+if (__name__=="__main__"):
 
-# read input data
-roster_table = read_roster("ta-roster.csv")
-slots_table = read_slots("ta-assignments.csv")
+    # set up report version info
+    # TODO switch to yaml config file
+    if (len(sys.argv) > 1):
+        REPORT_VERSION_INFO["version"] = sys.argv[1]
+        REPORT_VERSION_INFO["flag"] = "-{term_code}-v{version:s}".format(**REPORT_VERSION_INFO)
+    else:
+        REPORT_VERSION_INFO["version"] = "0"
+        REPORT_VERSION_INFO["flag"] = ""
+    today = datetime.date.today()
+    REPORT_VERSION_INFO["date"] = today.strftime("%m/%d/%Y")
 
-# process database
-ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course = process_database(roster_table,slots_table)
+    # read input data
+    roster_table = read_roster("ta-roster.csv")
+    slots_table = read_slots("ta-assignments.csv")
 
-# prepare output tabulations
-prepare_reports(ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course, report_version_info)
+    # process database
+    ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course = process_database(roster_table,slots_table)
+
+    # prepare output tabulations
+    prepare_reports(ta_keys, key_dict, ta_info_by_ta, course_list, hours_by_ta, slots_by_ta, slots_by_course)
 
