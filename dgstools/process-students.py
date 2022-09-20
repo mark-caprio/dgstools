@@ -1191,11 +1191,11 @@ if (__name__=="__main__"):
     # advising reports
     report_advising_faculty("advising-by-faculty-{}.txt".format(date_code),database,faculty_list,include_defended=True,include_advising=True,flag_tenured=False)
     report_advising_student("advising-by-student-{}.txt".format(date_code),database)
+    report_advising_load("advising-load-{}.txt".format(date_code),database,faculty_list)
 
     # working reports for mentoring committee assignment process (optional)
     make_committee_preparation_reports = config.get("research_committee") is not False
     if (make_committee_preparation_reports):
-        report_advising_load("advising-load-{}.txt".format(date_code),database,faculty_list)
         report_advising_faculty("research-committees-by-faculty-{}.txt".format(date_code),database,faculty_list,include_defended=False,include_advising=False,flag_tenured=True)
  
     # working reports for TA assignment process (optional)
