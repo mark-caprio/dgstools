@@ -3,167 +3,113 @@
     Extract responses to faculty course request questionnairre, for
     Instructional & Course Offering Committee.
 
-    Postprocessing:
+Usage:
 
-        python3 extract-course-request.py
-        a2pdfify --plain --truncate-lines=no -f10 req*.txt
+    python3 ~/code/dgstools/dgstools/extract-course-request.py
+    a2pdfify --plain --truncate-lines=no -f10 req*.txt
 
-    Language: Python 3
+The config file "extract-course-request.yml" is a YAML file with the following keys:
 
-    Mark A. Caprio
-    University of Notre Dame
+    term (str): term as <yyx> ("a"=spring, "b"=fall)
+    response_filename (str): path to form response spreadsheet (CSV)
 
-    09/05/16 (mac): Created (2017a-extract-course-request).
-    01/19/17 (mac): Update for 2017b requests.  Add alpha sorting by last name.
-    01/23/17 (mac): Add output grouped by course.
-    09/04/17 (mac): Update for 18a requests.
-    01/22/18 (mac): Update for 18b requests.  Restore "other" field.
-    08/11/18 (mac): Update for 19a requests.
-    01/22/19 (mac): Update for 19b requests.  Make sorting case insensitive.
-    08/26/19 (mac): Update for 20a requests.
-    01/24/20 (mac): Update for 20b requests.
-    08/25/21 (mac): Update for 21a requests.
-    01/29/21 (mac): Update for 21b requests.
-    08/29/21 (mac): Update for 22a requests.
-    12/30/21 (mac): Make term agnostic (extract-course-request.py).
+Requires: PyYAML
+
+Language: Python 3
+
+Mark A. Caprio
+University of Notre Dame
+
+09/05/16 (mac): Created (2017a-extract-course-request).
+01/19/17 (mac): Update for 2017b requests.  Add alpha sorting by last name.
+01/23/17 (mac): Add output grouped by course.
+09/04/17 (mac): Update for 18a requests.
+01/22/18 (mac): Update for 18b requests.  Restore "other" field.
+08/11/18 (mac): Update for 19a requests.
+01/22/19 (mac): Update for 19b requests.  Make sorting case insensitive.
+08/26/19 (mac): Update for 20a requests.
+01/24/20 (mac): Update for 20b requests.
+08/25/21 (mac): Update for 21a requests.
+01/29/21 (mac): Update for 21b requests.
+08/29/21 (mac): Update for 22a requests.
+12/30/21 (mac): Make term agnostic (extract-course-request.py).
+01/25/23 (mac): Switch from hard-coded parameters to YAML config file.
 
 """
+
+import yaml
 
 import spreadsheet
 
 ################################################################
-# global database configuration
+# tools
 ################################################################
 
-# configuration
-term = "Fall 2022"
-term_tag = "22b"
-filename = "220123-responses/Fall 2022 Course Requests.csv"
+def term_name_from_term(term):
+    """ Convert term code as as <yyx> to full term name.
 
-# Fields 22b:
-# "Timestamp"
-# "Your First Name"
-# "Your Last Name"
-# "If you have taught your current course fewer than 3 times in the over the past 5 times that it has been offered, please choose from one of the options below:"
-# "If you have reached an understanding with the Chair on your teaching assignment for this semester, please remind us of the agreement in the space below."
-# "If you would like to teach a new course, or a course not listed below, or have any other requests, please list them below."
-# "If there is any other comments and/or information that you wish to communicate to the Committee, please use the space below."
-# "Phys 10033/20333: Earth Focus"
-# "Phys 10063/20063: Radioactivity and Society"
-# "Phys 10111: Principles of Physics"
-# "Phys 10140/20140: Descriptive Astronomy"
-# "Phys 10240: Elementary Cosmology"
-# "Phys 10310: Engineering Physics I"
-# "Phys 10320: Engineering Physics II"
-# "Phys 10411: Physics A"
-# "Phys 20065: Science and Strategy of Nuclear War"
-# "Phys 20210: Physics for Life Sciences I"
-# "Phys 20220: Physics for Life Sciences II"
-# "Phys 30461: Thermal Physics"
-# "Phys 30471: E & M I"
-# "Phys 40453: Quantum Mechanics I"
-# "Phys 50201: Physics for Astrophysics"
-# "Phys 60050: Computational Physics"
-# "Phys 60061: Scientific Writing for Physicists"
-# "Phys 70007: Quantum Mechanics I"
-# "Phys 80003: Quantum Field Theory I"
+        e.g., "23a" -> "Spring 2023"
 
-# Fields 22a:
-# "Timestamp"
-# "Your First Name"
-# "Your Last Name"
-# "If you have taught your current course fewer than 3 times in the last 5 years, please choose from one of the options below:"
-# "If you believe you have reached an understanding with the Chair on your teaching assignment for this semester, please remind us of the agreement in the space below."
-# "If there is any other comments and/or information that you wish to communicate to the Committee, please use the space below."
-# "Phys 10342: Modern Physics: From Quarks to Quasars"
-# "PHYS 10310: Engineering Physics I"
-# "PHYS 10320: Engineering Physics II"
-# "PHYS 20210: Physics for Life Sciences I"
-# "PHYS 20220: Physics for Life Sciences II"
-# "PHYS 20420: Computational Methods"
-# "PHYS 20454: Intermediate Mechanics"
-# "PHYS 30472: Electromagnetic Waves"
-# "PHYS 50472: Relativity: Special and General "
-# "PHYS 50602: Particles and Cosmology"
-# "PHYS 50701: Introduction to Nuclear Physics"
-# "PHYS 70006: Electrodynamics"
-# "PHYS 80004: Quantum Field Theory II"
-# "If you would like to teach a new course, or a course not listed above, please list them below"
+    Arguments:
 
+        term (str): term as <yyx> ("a"=spring, "b"=fall)
 
-# Fields 21b:
-# "Timestamp"
-# "Your First Name"
-# "Your Last Name"
-# "If you have reached an understanding with the Chair on your teaching assignment for this semester, please remind us of the agreement in the space below."
-# "If you have taught your current course fewer than 3 times in the last 5 years, please choose from one of the options below: "
-# "If you would like to teach a new course, or a course not listed below, or have any other requests, please list them below."
-# "Phys 10033/20333: Earth Focus"
-# "Phys 10063/20063: Radioactivity and Society"
-# "Phys 10111: Principles of Physics"
-# "Phys 10240: Elementary Cosmology"
-# "Phys 10320: Engineering Physics II"
-# "Phys 20065: Science and Strategy of Nuclear War"
-# "Phys 20210: Physics for Life Sciences I"
-# "Phys 20220: Physics for Life Sciences II"
-# "Phys 20433: Physics C"
-# "Phys 20451: Mathematical Methods for Physics I"
-# "Phys 20481: Introduction to Astronomy/Astrophysics"
-# "Phys 50051: Numerical PDE"
-# "Phys 50481: Modern Observational Techniques"
-# "Phys 60050: Computational Physics"
-# "Phys 60061: Science Writing"
-# "Phys 60070: Computing and Data Analysis for Physicists"
-# "Phys 60410: Patterns of Life"
-# "Phys 70007: Quantum Mechanics I"
-# "Phys 80003: Quantum Field Theory I"
-#  ""
+    Returns:
 
-field_names = [
-    "timestamp",
-    "first",
-    "last",
-    "continue",
-    "agreement",
-    "requests",
-    "other",
-]
-tagged_line_field_names = [
-    "Phys 10033/20333: Earth Focus",
-    "Phys 10063/20063: Radioactivity and Society",
-    "Phys 10111: Principles of Physics",
-    "Phys 10140/20140: Descriptive Astronomy",
-    "Phys 10240: Elementary Cosmology",
-    "Phys 10310: Engineering Physics I",
-    "Phys 10320: Engineering Physics II",
-    "Phys 10411: Physics A",
-    "Phys 20065: Science and Strategy of Nuclear War",
-    "Phys 20210: Physics for Life Sciences I",
-    "Phys 20220: Physics for Life Sciences II",
-    "Phys 30461: Thermal Physics",
-    "Phys 30471: E & M I",
-    "Phys 40453: Quantum Mechanics I",
-    "Phys 50201: Physics for Astrophysics",
-    "Phys 60050: Computational Physics",
-    "Phys 60061: Scientific Writing for Physicists",
-    "Phys 70007: Quantum Mechanics I",
-    "Phys 80003: Quantum Field Theory I",
-]
-field_names += tagged_line_field_names
+        (str): term name
+    """
 
+    # definitions
+    century_stem = "20"
+    season_by_code = {"a": "Spring", "b": "Fall"}
+                  
+    # extract parts of term
+    yy = term[:2]
+    x = term[-1]
+
+    # build term name
+    season = season_by_code[x]
+    term_name = "{} {}{}".format(season, century_stem, yy)
+    return term_name
+
+    
 ################################################################
 # data input
 ################################################################
 
-def generate_database():
+def generate_database(response_filename, courses):
     """ Read CSV database and postprocess fields.
 
+    Arguments:
+
+        response_filename (str): filename for input stream
+
+        courses (str): names of courses as appearing in spreadsheet header
+
     Returns:
+
        (list of dict) : list of faculty preference records
     """
 
+    # construct full list of field names
+    field_names = [
+        "timestamp",
+        "username",
+        "first",
+        "last",
+        "continue",
+        "agreement",
+        "requests",
+        "other",
+    ]
+    field_names += courses
+    
     # read file
-    database = spreadsheet.read_spreadsheet_dictionary(filename,field_names,skip=True,debug=False)
+    database = spreadsheet.read_spreadsheet_dictionary(
+        response_filename,
+        field_names,
+        skip=True,debug=False,
+    )
     
     # add name (as "last, first") as sorting key
     for entry in database:
@@ -175,18 +121,25 @@ def generate_database():
     # process radio buttons
     for entry in database:
         spreadsheet.convert_fields_to_tagged_lines(
-            entry,tagged_line_field_names,
+            entry, courses,
             prefix="    ",prune=True
         )
 
     return database
 
-def report_by_faculty(filename,database):
+def report_by_faculty(filename, database, term_name, courses):
     """Generate report of preferences by faculty.
 
     Arguments:
+
         filename (str): filename for output stream
+
         database (list of dict): preference database
+
+        term_name (str): formatted term name
+
+        courses (str): names of courses as appearing in spreadsheet header
+
     """
 
     report_stream = open(filename,"w")
@@ -194,8 +147,8 @@ def report_by_faculty(filename,database):
     # header
     print(
         "Teaching requests by faculty member\n"
-        "{term}\n"
-        "".format(term=term),
+        "{term_name}\n"
+        "".format(term_name=term_name),
         file=report_stream
     )
 
@@ -211,7 +164,7 @@ def report_by_faculty(filename,database):
 
         preference_lines = [
             entry[field_name]
-            for field_name in tagged_line_field_names
+            for field_name in courses
         ]
         preference_block = "".join(preference_lines)
 
@@ -234,12 +187,19 @@ def report_by_faculty(filename,database):
     report_stream.close()
 
 
-def report_by_course(filename,database):
+def report_by_course(filename, database, term_name, courses):
     """Generate report of preferences by faculty.
 
     Arguments:
+
         filename (str): filename for output stream
+
         database (list of dict): preference database
+
+        term_name (str): formatted term name
+
+        courses (str): names of courses as appearing in spreadsheet header
+
     """
 
     report_stream = open(filename,"w")
@@ -247,14 +207,14 @@ def report_by_course(filename,database):
     # header
     print(
         "Teaching requests by course\n"
-        "{term}\n"
-        "".format(term=term),
+        "{term_name}\n"
+        "".format(term_name=term_name),
         file=report_stream
     )
 
     # generate output tabulation
     tagged_blocks = dict()
-    for course_name in tagged_line_field_names:
+    for course_name in courses:
 
         
         # collect preference lines for that course
@@ -294,6 +254,19 @@ def report_by_course(filename,database):
 # main program
 ################################################################
 
-database = generate_database()
-report_by_faculty("requests-by-faculty-{}.txt".format(term_tag),database)
-report_by_course("requests-by-course-{}.txt".format(term_tag),database)
+if (__name__=="__main__"):
+
+    # read configuration
+    with open("extract-course-request.yml", "r") as f:
+        config = yaml.safe_load(f)
+    response_filename = config["response_filename"]
+    term = config["term"]
+    term_name = term_name_from_term(term)
+    courses = config["courses"]
+    
+    # read responses
+    database = generate_database(response_filename, courses)
+
+    # generate reports
+    report_by_faculty("requests-by-faculty-{}.txt".format(term), database, term_name, courses)
+    report_by_course("requests-by-course-{}.txt".format(term), database, term_name, courses)

@@ -1,0 +1,17 @@
+# configuration for extract-course-request.py
+
+response_filename: "Fall 2023 Course Requests.csv"
+term: "23b"
+courses:
+    - "Phys 10063/20063: Radioactivity and Society"
+    - "Phys 10310: Engineering Physics I"
+    - "Phys 10320: Engineering Physics II"
+    - "Phys 20065: Science and Strategy of Nuclear War"
+    - "Phys 20210: Physics for Life Sciences I"
+    - "Phys 20220: Physics for Life Sciences II"
+    - "Phys 40453: Quantum Mechanics I"
+    - "Phys 50501: Introduction to Solid State Physics"
+    - "Phys 60061: Scientific Writing for Physicists"
+    - "Phys 70003: Mathematical Methods in Physics"
+    - "Phys 70005: Classical Mechanics "
+    - "Phys 80003: Quantum Field Theory I"
