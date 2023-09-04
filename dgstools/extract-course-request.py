@@ -34,6 +34,7 @@ University of Notre Dame
 08/29/21 (mac): Update for 22a requests.
 12/30/21 (mac): Make term agnostic (extract-course-request.py).
 01/25/23 (mac): Switch from hard-coded parameters to YAML config file.
+09/04/23 (mac): Allow form structure (field order) to be specified in config file.
 
 """
 
@@ -77,32 +78,52 @@ def term_name_from_term(term):
 # data input
 ################################################################
 
-def generate_database(response_filename, courses):
-    """ Read CSV database and postprocess fields.
+def generate_database(response_filename, prolog, epilog, courses):
+    """Read CSV database and postprocess fields.
+
+    Identifying fields:
+
+        timestamp, username, first, last
+       
+    Special fields:
+
+        continue -- "If you have taught your current course fewer than 3 times
+        in the over the past 5 times that it has been offered and have not
+        already expressed the desire to change over to a new course, please mark
+        below. You do not have to fill the rest of this form."
+
+        agreement -- "If you believe you have reached an understanding with the
+        Chair on your teaching assignment for this semester, please remind us of
+        the agreement in the space below."
+
+        requests -- "If there is any other comments and/or information that you
+        wish to communicate to the Committee, please use the space below."
+
+        other -- "If you would like to teach a new course, or a course not
+        listed above, please list them below"
 
     Arguments:
 
         response_filename (str): filename for input stream
+
+        prolog (str): names of prolog fields (i.e., before courses)
+
+        epilog (str): names of epilog fields (i.e., after courses)
 
         courses (str): names of courses as appearing in spreadsheet header
 
     Returns:
 
        (list of dict) : list of faculty preference records
+
     """
 
     # construct full list of field names
-    field_names = [
-        "timestamp",
-        "username",
-        "first",
-        "last",
-        "continue",
-        "agreement",
-        "requests",
-        "other",
-    ]
-    field_names += courses
+    if prolog is None:
+        prolog = []
+    if epilog is None:
+        epilog = []
+    field_names = prolog + courses + epilog
     
     # read file
     database = spreadsheet.read_spreadsheet_dictionary(
@@ -171,14 +192,14 @@ def report_by_faculty(filename, database, term_name, courses):
         # generate text block for entry
         entry_block = (""
                         "Name: {last}, {first}\n"
-                        "Continue current? {continue}\n"
+                        "Continue? {continue}\n"
                         "Understanding? {agreement}\n"
                         "Requests? {requests}\n"
-                        "Comments? {other}\n"
+                        "Other? {other}\n"
                         "{preference_block}"  # string contains all needed newlines
                         "".format(preference_block=preference_block,**entry)
         )
-        tagged_blocks[entry["name"].upper()] = entry_block
+        tagged_blocks[entry["name"].upper()] = entry_block  # force case for sorting purposes
 
     # generate sorted output
     for key in sorted(tagged_blocks.keys()):
@@ -262,10 +283,12 @@ if (__name__=="__main__"):
     response_filename = config["response_filename"]
     term = config["term"]
     term_name = term_name_from_term(term)
+    prolog = config["prolog"]
+    epilog = config["epilog"]
     courses = config["courses"]
     
     # read responses
-    database = generate_database(response_filename, courses)
+    database = generate_database(response_filename, prolog, epilog, courses)
 
     # generate reports
     report_by_faculty("requests-by-faculty-{}.txt".format(term), database, term_name, courses)

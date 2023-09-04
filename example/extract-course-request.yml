@@ -2,6 +2,16 @@
 
 response_filename: "Fall 2023 Course Requests.csv"
 term: "23b"
+prolog:
+    - "timestamp"
+    - "username"
+    - "first"
+    - "last"
+    - "continue"
+    - "agreement"
+    - "requests"
+    - "other"
+epilog:
 courses:
     - "Phys 10063/20063: Radioactivity and Society"
     - "Phys 10310: Engineering Physics I"
