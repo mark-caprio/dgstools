@@ -35,6 +35,7 @@ University of Notre Dame
 12/30/21 (mac): Make term agnostic (extract-course-request.py).
 01/25/23 (mac): Switch from hard-coded parameters to YAML config file.
 09/04/23 (mac): Allow form structure (field order) to be specified in config file.
+09/06/24 (mac): Rename "requests" field to "comments" and update labeling in output report.
 
 """
 
@@ -96,11 +97,13 @@ def generate_database(response_filename, prolog, epilog, courses):
         Chair on your teaching assignment for this semester, please remind us of
         the agreement in the space below."
 
-        requests -- "If there is any other comments and/or information that you
+        comments -- "If there is any other comments and/or information that you
         wish to communicate to the Committee, please use the space below."
 
-        other -- "If you would like to teach a new course, or a course not
-        listed above, please list them below"
+        other -- (A) "If you would like to teach a new course, or a course not
+        listed below, or have any other requests, please list them below." OR
+        (B) "If you would like to teach a new course, or a course not listed
+        above, please list them below"
 
     Arguments:
 
@@ -194,8 +197,8 @@ def report_by_faculty(filename, database, term_name, courses):
                         "Name: {last}, {first}\n"
                         "Continue? {continue}\n"
                         "Understanding? {agreement}\n"
-                        "Requests? {requests}\n"
-                        "Other? {other}\n"
+                        "Comments/info? {comments}\n"
+                        "New/other? {other}\n"
                         "{preference_block}"  # string contains all needed newlines
                         "".format(preference_block=preference_block,**entry)
         )

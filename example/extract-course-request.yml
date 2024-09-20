@@ -9,7 +9,7 @@ prolog:
     - "last"
     - "continue"
     - "agreement"
-    - "requests"
+    - "comments"
     - "other"
 epilog:
 courses:
